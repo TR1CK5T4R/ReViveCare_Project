@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Portal - ReViveCare</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        nav {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4CAF50;
+            font-size: 1.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4CAF50;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: white;
+            color: #4CAF50;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        .welcome-section {
+            margin-bottom: 3rem;
+            animation: fadeInUp 0.6s ease;
+        }
+
+        .welcome-section h1 {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .welcome-section p {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+            animation: fadeInUp 0.6s ease 0.2s both;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+        }
+
+        .stat-icon.patients {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .stat-icon.alerts {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .stat-icon.progress {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .stat-icon.reviews {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .stat-info h3 {
+            font-size: 2rem;
+            color: #2c3e50;
+            margin-bottom: 0.3rem;
+        }
+
+        .stat-info p {
+            color: #7f8c8d;
+            font-size: 0.95rem;
+        }
+
+        /* Main Actions */
+        .main-actions {
+            animation: fadeInUp 0.6s ease 0.4s both;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .action-card {
+            background: white;
+            border-radius: 16px;
+            padding: 3rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            text-align: center;
+            transition: all 0.4s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .action-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+            border-color: #4CAF50;
+        }
+
+        .action-icon {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
+        }
+
+        .action-card:nth-child(2) .action-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .action-card h2 {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+
+        .action-card p {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .action-card:nth-child(2) .action-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .action-card:nth-child(2) .action-btn:hover {
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Quick Access Section */
+        .quick-access {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            animation: fadeInUp 0.6s ease 0.6s both;
+        }
+
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .quick-link {
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: #2c3e50;
+        }
+
+        .quick-link:hover {
+            border-color: #4CAF50;
+            background: #f1f8f4;
+            transform: translateY(-2px);
+        }
+
+        .quick-link-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .quick-link-text {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .actions-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+
+            .welcome-section h1 {
+                font-size: 2rem;
+            }
+
+            .action-card {
+                padding: 2rem;
+            }
+
+            .action-icon {
+                width: 80px;
+                height: 80px;
+                font-size: 2.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .user-info span {
+                display: none;
+            }
+
+            .container {
+                padding: 2rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <div class="logo-icon">💚</div>
+                <span>ReViveCare</span>
+            </div>
+            <div class="user-info">
+                <span>Doctor</span>
+                <div class="user-avatar">DJ</div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="welcome-section">
+            <h1>👋 Welcome back, Doctor</h1>
+            <p>Manage your patients' recovery journey with ease</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon patients">👥</div>
+                <div class="stat-info">
+                    <h3>47</h3>
+                    <p>Active Patients</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon alerts">🚨</div>
+                <div class="stat-info">
+                    <h3>3</h3>
+                    <p>New Alerts</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon progress">📈</div>
+                <div class="stat-info">
+                    <h3>85%</h3>
+                    <p>Avg. Progress Rate</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon reviews">✅</div>
+                <div class="stat-info">
+                    <h3>12</h3>
+                    <p>Pending Reviews</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-actions">
+            <h2 class="section-title">🎯 Main Actions</h2>
+            <div class="actions-grid">
+                <div class="action-card">
+                    <div class="action-icon">➕</div>
+                    <h2>Add Patient Info</h2>
+                    <p>Register a new patient and set up their personalized recovery plan with discharge instructions</p>
+                    <a href = "{%url 'doc_info_page' %}">
+                    <button class="action-btn">Add New Patient</button>
+                    </a>
+                </div>
+
+                <div class="action-card">
+                    <div class="action-icon">📊</div>
+                    <h2>See Summaries</h2>
+                    <p>View AI-generated patient progress reports, recovery metrics, and red flag alerts</p>
+                    <button class="action-btn">View Summaries</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="quick-access">
+            <h2 class="section-title">⚡ Quick Access</h2>
+            <div class="quick-links">
+                <a href="#" class="quick-link">
+                    <div class="quick-link-icon">🔔</div>
+                    <div class="quick-link-text">Notifications</div>
+                </a>
+                <a href="#" class="quick-link">
+                    <div class="quick-link-icon">📅</div>
+                    <div class="quick-link-text">Appointments</div>
+                </a>
+                <a href="#" class="quick-link">
+                    <div class="quick-link-icon">💬</div>
+                    <div class="quick-link-text">Messages</div>
+                </a>
+                <a href="#" class="quick-link">
+                    <div class="quick-link-icon">📋</div>
+                    <div class="quick-link-text">Reports</div>
+                </a>
+                <a href="#" class="quick-link">
+                    <div class="quick-link-icon">⚙️</div>
+                    <div class="quick-link-text">Settings</div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function addPatientInfo() {
+            alert('Opening Add Patient Form...\n\nHere you can:\n• Register new patient\n• Enter discharge details\n• Set recovery plan\n• Assign care protocols\n• Configure monitoring parameters');
+            // In production: window.location.href = '/doctor/add-patient';
+        }
+
+        function seeSummaries() {
+            alert('Opening Patient Summaries...\n\nView:\n• AI-generated progress reports\n• Recovery metrics & charts\n• Red flag alerts\n• Exercise adherence data\n• Symptom tracking history');
+            // In production: window.location.href = '/doctor/summaries';
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                alert('Logging out...');
+                // In production: window.location.href = '/logout';
+            }
+        }
+
+        // Add click handlers for quick links
+        document.querySelectorAll('.quick-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const text = link.querySelector('.quick-link-text').textContent;
+                alert(`Opening ${text}...`);
+            });
+        });
+
+        // Animate stats on load
+        window.addEventListener('load', () => {
+            const statNumbers = document.querySelectorAll('.stat-info h3');
+            statNumbers.forEach((stat, index) => {
+                const finalValue = parseInt(stat.textContent);
+                let currentValue = 0;
+                const increment = Math.ceil(finalValue / 30);
+                
+                const counter = setInterval(() => {
+                    currentValue += increment;
+                    if (currentValue >= finalValue) {
+                        stat.textContent = stat.textContent.includes('%') ? finalValue + '%' : finalValue;
+                        clearInterval(counter);
+                    } else {
+                        stat.textContent = stat.textContent.includes('%') ? currentValue + '%' : currentValue;
+                    }
+                }, 30);
+            });
+        });
+    </script>
+</body>
+</html>

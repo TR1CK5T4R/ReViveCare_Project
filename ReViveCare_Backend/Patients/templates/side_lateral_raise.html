@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReViveCare - Side Lateral Raise Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        nav {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #667eea;
+            font-size: 1.5rem;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .back-btn:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #667eea;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.6s ease;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .page-header p {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+            margin-top: 0.5rem;
+        }
+
+        /* Main Content Grid */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Video Section */
+        .video-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        .video-feed {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .video-placeholder {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .control-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        .stats-panel h2 {
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf0 100%);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-card h3 {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+
+        .stat-small {
+            font-size: 0.85rem;
+            color: #95a5a6;
+            margin-top: 0.25rem;
+        }
+
+        .quality-breakdown {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .quality-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .quality-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .quality-badge {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .badge-excellent {
+            background: #4CAF50;
+        }
+
+        .badge-good {
+            background: #00bcd4;
+        }
+
+        .badge-partial {
+            background: #ff9800;
+        }
+
+        .quality-count {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        /* Info Banner */
+        .info-banner {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-left: 5px solid #2196F3;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+
+        .info-banner h3 {
+            color: #1976D2;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-banner ul {
+            margin-left: 1.5rem;
+            color: #424242;
+            line-height: 1.8;
+        }
+
+        /* Summary Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.4s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .modal-header h2 {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .summary-stats {
+            display: grid;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .summary-item strong {
+            color: #2c3e50;
+        }
+
+        .summary-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .redirect-message {
+            text-align: center;
+            color: #7f8c8d;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-header h1 {
+                font-size: 2rem;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .control-group {
+                min-width: 100%;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .user-info span {
+                display: none;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .modal-content {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <div class="logo">
+                <div class="logo-icon">🏥</div>
+                <span>ReViveCare</span>
+            </div>
+            <div class="nav-links">
+                <a href="{% url 'exercise' %}" class="back-btn">← Back to Exercises</a>
+                <div class="user-info">
+                    <div class="user-avatar">P</div>
+                    <span>Patient</span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>🦾 Side Lateral Raise Tracker</h1>
+            <p>AI-powered form tracking for shoulder rehabilitation</p>
+        </div>
+
+        <!-- Info Banner -->
+        <div class="info-banner">
+            <h3>📋 Exercise Instructions</h3>
+            <ul>
+                <li>Stand with feet shoulder-width apart, arms at your sides</li>
+                <li>Raise both arms simultaneously to shoulder height</li>
+                <li>Keep elbows slightly bent throughout the movement</li>
+                <li>Lower arms back down with control</li>
+                <li>Avoid shrugging shoulders or using momentum</li>
+            </ul>
+        </div>
+
+        <!-- Content Grid -->
+        <div class="content-grid">
+            <!-- Video Section -->
+            <div class="video-section">
+                <div class="video-container">
+                    <img id="videoFeed" src="{% url 'video_feed' %}" class="video-feed" alt="Video Feed">
+                </div>
+                
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="targetReps">Target Reps</label>
+                        <input type="number" id="targetReps" value="12" min="1" max="50">
+                    </div>
+                    <div style="display: flex; gap: 1rem; align-items: flex-end;">
+                        <button id="startBtn" class="btn btn-primary">
+                            ▶ Start Workout
+                        </button>
+                        <button id="resetBtn" class="btn btn-secondary" style="display: none;">
+                            🔄 Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Panel -->
+            <div class="stats-panel">
+                <h2>📊 Workout Stats</h2>
+                
+                <div class="stat-card">
+                    <h3>REPS COMPLETED</h3>
+                    <div class="stat-value" id="repsCount">0</div>
+                    <div class="stat-small">Target: <span id="targetDisplay">12</span></div>
+                </div>
+
+                <div class="stat-card">
+                    <h3>CURRENT STAGE</h3>
+                    <div class="stat-value" style="font-size: 2rem;" id="stageDisplay">--</div>
+                </div>
+
+                <h3 style="margin: 1.5rem 0 1rem; color: #2c3e50;">Quality Breakdown</h3>
+                <div class="quality-breakdown">
+                    <div class="quality-item">
+                        <div class="quality-label">
+                            <div class="quality-badge badge-excellent"></div>
+                            Excellent ★
+                        </div>
+                        <div class="quality-count" id="excellentCount">0</div>
+                    </div>
+                    <div class="quality-item">
+                        <div class="quality-label">
+                            <div class="quality-badge badge-good"></div>
+                            Good ✓
+                        </div>
+                        <div class="quality-count" id="goodCount">0</div>
+                    </div>
+                    <div class="quality-item">
+                        <div class="quality-label">
+                            <div class="quality-badge badge-partial"></div>
+                            Partial
+                        </div>
+                        <div class="quality-count" id="partialCount">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Modal -->
+    <div id="summaryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-icon">🎉</div>
+                <h2>Workout Complete!</h2>
+                <p style="color: #7f8c8d;">Great job on completing your set!</p>
+            </div>
+
+            <div class="summary-stats">
+                <div class="summary-item">
+                    <strong>Total Reps</strong>
+                    <span class="summary-value" id="summaryTotal">0</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Excellent ★</strong>
+                    <span class="summary-value" id="summaryExcellent">0</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Good ✓</strong>
+                    <span class="summary-value" id="summaryGood">0</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Partial</strong>
+                    <span class="summary-value" id="summaryPartial">0</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Quality Rate</strong>
+                    <span class="summary-value" id="summaryQuality">0%</span>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button onclick="redirectToDashboard()" class="btn btn-primary">
+                    ✓ Back to Dashboard
+                </button>
+            </div>
+
+            <div class="redirect-message" id="redirectMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        let checkInterval = null;
+        let workoutActive = false;
+
+        // Start Workout
+        document.getElementById('startBtn').addEventListener('click', async function() {
+            const targetReps = document.getElementById('targetReps').value;
+            
+            try {
+                const response = await fetch('{% url "start_workout" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        target_reps: parseInt(targetReps)
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'started') {
+                    workoutActive = true;
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('targetReps').disabled = true;
+                    document.getElementById('resetBtn').style.display = 'inline-flex';
+                    document.getElementById('targetDisplay').textContent = targetReps;
+                    
+                    // Start polling for status
+                    checkInterval = setInterval(checkWorkoutStatus, 500);
+                }
+            } catch (error) {
+                console.error('Error starting workout:', error);
+                alert('Failed to start workout. Please try again.');
+            }
+        });
+
+        // Reset Workout
+        document.getElementById('resetBtn').addEventListener('click', async function() {
+            try {
+                await fetch('{% url "reset_workout" %}', {
+                    method: 'POST',
+                });
+                
+                workoutActive = false;
+                clearInterval(checkInterval);
+                
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('targetReps').disabled = false;
+                document.getElementById('resetBtn').style.display = 'none';
+                
+                // Reset displays
+                document.getElementById('repsCount').textContent = '0';
+                document.getElementById('stageDisplay').textContent = '--';
+                document.getElementById('excellentCount').textContent = '0';
+                document.getElementById('goodCount').textContent = '0';
+                document.getElementById('partialCount').textContent = '0';
+                
+            } catch (error) {
+                console.error('Error resetting workout:', error);
+            }
+        });
+
+        // Check Workout Status
+        async function checkWorkoutStatus() {
+            try {
+                const response = await fetch('{% url "get_workout_status" %}');
+                const data = await response.json();
+                
+                // Update UI
+                document.getElementById('repsCount').textContent = data.counter;
+                document.getElementById('excellentCount').textContent = data.excellent_reps;
+                
+                const goodOnly = data.good_reps - data.excellent_reps;
+                document.getElementById('goodCount').textContent = goodOnly;
+                document.getElementById('partialCount').textContent = data.partial_reps;
+                
+                // Check if workout is complete
+                if (data.complete && workoutActive) {
+                    workoutActive = false;
+                    clearInterval(checkInterval);
+                    showSummary(data);
+                }
+                
+            } catch (error) {
+                console.error('Error checking status:', error);
+            }
+        }
+
+        // Show Summary Modal
+        function showSummary(data) {
+            const modal = document.getElementById('summaryModal');
+            
+            document.getElementById('summaryTotal').textContent = data.counter;
+            document.getElementById('summaryExcellent').textContent = data.excellent_reps;
+            document.getElementById('summaryGood').textContent = data.good_reps - data.excellent_reps;
+            document.getElementById('summaryPartial').textContent = data.partial_reps;
+            
+            const qualityRate = data.counter > 0 ? ((data.good_reps / data.counter) * 100).toFixed(1) : 0;
+            document.getElementById('summaryQuality').textContent = qualityRate + '%';
+            
+            modal.classList.add('active');
+            
+            // Auto redirect after 10 seconds
+            let countdown = 10;
+            const redirectMsg = document.getElementById('redirectMessage');
+            redirectMsg.textContent = `Redirecting to dashboard in ${countdown} seconds...`;
+            
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                redirectMsg.textContent = `Redirecting to dashboard in ${countdown} seconds...`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    redirectToDashboard();
+                }
+            }, 1000);
+        }
+
+        // Redirect to Dashboard
+        function redirectToDashboard() {
+            window.location.href = '{% url "patient_dashboard" %}';
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('summaryModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                redirectToDashboard();
+            }
+        });
+    </script>
+</body>
+</html>

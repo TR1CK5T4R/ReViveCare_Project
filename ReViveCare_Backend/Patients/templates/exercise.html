@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReViveCare - Exercise Programs</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        nav {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4CAF50;
+            font-size: 1.5rem;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .back-btn:hover {
+            background: white;
+            color: #4CAF50;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4CAF50;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        .page-header {
+            margin-bottom: 3rem;
+            animation: fadeInUp 0.6s ease;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .page-header p {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+            margin-top: 0.5rem;
+        }
+
+        /* Info Banner */
+        .info-banner {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-left: 5px solid #2196F3;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 3rem;
+            animation: fadeInUp 0.6s ease 0.1s both;
+        }
+
+        .info-banner h3 {
+            color: #1976D2;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-banner p {
+            color: #424242;
+            line-height: 1.6;
+        }
+
+        /* Exercise Grid */
+        .exercise-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            animation: fadeInUp 0.6s ease 0.2s both;
+        }
+
+        /* Exercise Cards */
+        .exercise-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: all 0.4s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .exercise-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            transform: scaleX(0);
+            transition: transform 0.4s ease;
+        }
+
+        .exercise-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+            border-color: #4CAF50;
+        }
+
+        .exercise-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .exercise-card:nth-child(2)::before {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .exercise-card:nth-child(3)::before {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .exercise-card:nth-child(4)::before {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .exercise-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
+        }
+
+        .exercise-card:nth-child(2) .exercise-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .exercise-card:nth-child(3) .exercise-icon {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 8px 20px rgba(245, 87, 108, 0.3);
+        }
+
+        .exercise-card:nth-child(4) .exercise-icon {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .exercise-card h2 {
+            font-size: 1.6rem;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .exercise-card .difficulty {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .exercise-card:nth-child(2) .difficulty {
+            background: #f3e5f5;
+            color: #6a1b9a;
+        }
+
+        .exercise-card:nth-child(3) .difficulty {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .exercise-card:nth-child(4) .difficulty {
+            background: #e1f5fe;
+            color: #0277bd;
+        }
+
+        .exercise-card p {
+            color: #7f8c8d;
+            font-size: 1rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .exercise-benefits {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .exercise-benefits h4 {
+            color: #2c3e50;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .exercise-benefits ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .exercise-benefits li {
+            color: #7f8c8d;
+            font-size: 0.85rem;
+            padding: 0.3rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .exercise-benefits li::before {
+            content: '✓';
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: center;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .exercise-card:nth-child(2) .start-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .exercise-card:nth-child(3) .start-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
+        }
+
+        .exercise-card:nth-child(4) .start-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .exercise-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-header h1 {
+                font-size: 2rem;
+            }
+
+            .exercise-card {
+                padding: 2rem;
+            }
+
+            .container {
+                padding: 2rem 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .user-info span {
+                display: none;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <div class="logo">
+                <div class="logo-icon">🏥</div>
+                <span>ReViveCare</span>
+            </div>
+            <div class="nav-links">
+                <a href="{% url 'patient_dashboard' %}" class="back-btn">← Back to Dashboard</a>
+                <div class="user-info">
+                    <div class="user-avatar">P</div>
+                    <span>{{ patient.name }}</span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>🏃 Exercise Programs</h1>
+            <p>Safe, guided exercises designed for post-operative recovery</p>
+        </div>
+
+        <!-- Info Banner -->
+        <div class="info-banner">
+            <h3>⚕️ Important Safety Guidelines</h3>
+            <p>These exercises are designed specifically for post-operative rehabilitation. Always consult with your healthcare provider before starting any new exercise routine. Stop immediately if you experience pain, dizziness, or discomfort.</p>
+        </div>
+
+        <!-- Exercise Grid -->
+        <div class="exercise-grid">
+            <!-- Bicep Curls -->
+            <div class="exercise-card">
+                <div class="exercise-icon">💪</div>
+                <h2>Bicep Curls</h2>
+                <span class="difficulty">Beginner</span>
+                <p>Gentle arm strengthening exercise to rebuild upper body strength after surgery. Perfect for restoring muscle tone with controlled movements.</p>
+                <div class="exercise-benefits">
+                    <h4>🎯 Recovery Benefits:</h4>
+                    <ul>
+                        <li>Rebuilds arm strength safely</li>
+                        <li>Improves range of motion</li>
+                        <li>Low-impact rehabilitation</li>
+                    </ul>
+                </div>
+                <a href="{% url 'bc' %}" class="start-btn">Start Exercise</a>
+            </div>
+
+            <!-- Side Lateral Raises -->
+            <div class="exercise-card">
+                <div class="exercise-icon">🦾</div>
+                <h2>Side Lateral Raises</h2>
+                <span class="difficulty">Intermediate</span>
+                <p>Shoulder mobility exercise to restore range of motion and strength. Helps regain flexibility in the shoulder area with gentle, controlled movements.</p>
+                <div class="exercise-benefits">
+                    <h4>🎯 Recovery Benefits:</h4>
+                    <ul>
+                        <li>Enhances shoulder mobility</li>
+                        <li>Strengthens deltoid muscles</li>
+                        <li>Prevents stiffness</li>
+                    </ul>
+                </div>
+                <a href="{% url 'sr' %}" class="start-btn">Start Exercise</a>
+            </div>
+
+            <!-- Jumping Jacks -->
+            <div class="exercise-card">
+                <div class="exercise-icon">🤸</div>
+                <h2>Modified Jumping Jacks</h2>
+                <span class="difficulty">Intermediate</span>
+                <p>Low-impact cardiovascular exercise adapted for post-op recovery. Gradually builds stamina and coordination without excessive strain on healing areas.</p>
+                <div class="exercise-benefits">
+                    <h4>🎯 Recovery Benefits:</h4>
+                    <ul>
+                        <li>Improves cardiovascular health</li>
+                        <li>Boosts overall energy</li>
+                        <li>Full-body coordination</li>
+                    </ul>
+                </div>
+                <a href="{% url 'jj' %}" class="start-btn">Start Exercise</a>
+            </div>
+
+            <!-- Arm Rotation -->
+            <div class="exercise-card">
+                <div class="exercise-icon">🔄</div>
+                <h2>Arm Rotation</h2>
+                <span class="difficulty">Beginner</span>
+                <p>Circular arm movements to restore shoulder joint mobility and prevent stiffness. Ideal for improving range of motion in the shoulder area after surgery.</p>
+                <div class="exercise-benefits">
+                    <h4>🎯 Recovery Benefits:</h4>
+                    <ul>
+                        <li>Restores shoulder flexibility</li>
+                        <li>Prevents joint stiffness</li>
+                        <li>Improves circulation</li>
+                    </ul>
+                </div>
+                <a href="{% url 'ar' %}" class="start-btn">Start Exercise</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
