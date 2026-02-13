@@ -3,3 +3,4 @@ venv/
 __pycache__/
 *.pyc
 ReViveCare_Backend/venv/
+.DS_Store

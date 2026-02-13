@@ -9,6 +9,7 @@ dj-database-url==3.1.0
 
 # Environment variables
 python-decouple==3.8
+python-dotenv==1.0.0
 
 # Production server
 gunicorn==23.0.0
