@@ -1,0 +1,17 @@
+{
+  "name": "revivecare-node-backend",
+  "version": "1.0.0",
+  "description": "ReViveCare Node.js + Express + PostgreSQL backend",
+  "main": "src/server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  }
+}
