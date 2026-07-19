@@ -1,0 +1,6 @@
+node_modules/
+coverage/
+bench/
+tests/fixtures/
+package-lock.json
+tests/parity/report.md
