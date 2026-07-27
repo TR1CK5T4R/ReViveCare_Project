@@ -12,6 +12,17 @@
     "start": "node src/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:migrate": "node scripts/migrate.js",
+    "db:status": "node scripts/migrate.js --status",
+    "db:reset": "node scripts/migrate.js --reset",
+    "db:seed": "node scripts/seed.js",
+    "db:etl": "node scripts/etl-from-django.js",
+    "bench:prepare": "node scripts/migrate.js --database PARITY_DATABASE_URL --reset && node scripts/migrate.js --database PARITY_DATABASE_URL --to 0006 && node scripts/seed.js --database PARITY_DATABASE_URL",
+    "bench:baseline": "node scripts/bench-queries.js --database PARITY_DATABASE_URL --save bench/baseline.json",
+    "bench:indexed": "node scripts/migrate.js --database PARITY_DATABASE_URL && node scripts/bench-queries.js --database PARITY_DATABASE_URL --save bench/indexed.json"
   }
 }
