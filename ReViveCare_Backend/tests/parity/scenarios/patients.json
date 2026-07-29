@@ -1,0 +1,101 @@
+[
+  {
+    "name": "dashboard after login (React flow: csrf, login, JSON dashboard)",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/csrf/"
+      },
+      {
+        "method": "POST",
+        "path": "/login/",
+        "form": {
+          "email": "asha@parity.revivecare.test"
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Origin": "http://localhost:5173"
+        },
+        "csrf": true,
+        "compare_session": true,
+        "compare_headers": [
+          "vary",
+          "access-control-allow-origin",
+          "access-control-allow-credentials"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "dashboard shows the second patient their own record",
+    "actor": "patient_ravi",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "compare_session": true
+      }
+    ]
+  },
+  {
+    "name": "dashboard without a session: 401 JSON",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "compare_session": true,
+        "compare_headers": [
+          "vary"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "dashboard JSON mode from Content-Type alone",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    ]
+  },
+  {
+    "name": "dashboard JSON mode from an Accept list that contains application/json",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Accept": "text/html, application/json;q=0.9"
+        }
+      }
+    ]
+  },
+  {
+    "name": "Content-Type with a charset is not JSON mode (exact match)",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      }
+    ]
+  }
+]
