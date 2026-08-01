@@ -54,4 +54,54 @@ describe('errorHandler', () => {
     expect(res.text).not.toContain('secret internals');
   });
 
+  it('turns async rejections into the same 500 (Express 5 forwards them)', async () => {
+    const res = await request(
+      appWith(async () => {
+        throw new Error('boom');
+      }),
+    ).get('/');
+    expect(res.status).toBe(500);
+  });
+
+  it('answers an over-limit form body with 400, like Django RequestDataTooBig', async () => {
+    const app = appWith(express.urlencoded({ extended: false, limit: 10 }), (req, res) => res.end('ok'));
+    const res = await request(app)
+      .post('/')
+      .type('form')
+      .send('email=' + 'a'.repeat(50));
+    expect(res.status).toBe(400);
+    expect(res.text).toContain('<h1>Bad Request (400)</h1>');
+  });
+
+  it('passes custom headers from AppError', async () => {
+    const res = await request(
+      appWith(() => {
+        throw new AppError(405, '', { headers: { Allow: 'POST' } });
+      }),
+    ).get('/');
+    expect(res.status).toBe(405);
+    expect(res.headers.allow).toBe('POST');
+  });
+
+  it('builds notFound() with the Django 404 page by default', () => {
+    expect(notFound().body).toContain('The requested resource was not found on this server.');
+  });
+});
+
+describe('validate', () => {
+  const schema = { body: z.object({ email: z.string() }) };
+
+  it('stores parsed values on req.validated', async () => {
+    const app = appWith(express.json(), validate(schema), (req, res) => res.json(req.validated));
+    const res = await request(app).post('/').send({ email: 'a@b.test', extra: 1 });
+    expect(res.body).toEqual({ body: { email: 'a@b.test' } });
+  });
+
+  it('falls back to a Django form-errors shaped 400', async () => {
+    const app = appWith(express.json(), validate(schema), (req, res) => res.end());
+    const res = await request(app).post('/').send({});
+    expect(res.status).toBe(400);
+    expect(Object.keys(res.body)).toEqual(['email']);
+  });
+
 });
