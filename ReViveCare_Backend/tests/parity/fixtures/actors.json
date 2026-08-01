@@ -1,0 +1,17 @@
+{
+  "patient_asha": {
+    "email": "asha@parity.revivecare.test"
+  },
+  "patient_ravi": {
+    "email": "ravi@parity.revivecare.test"
+  },
+  "patient_mixed_case": {
+    "email": "Mixed.Case@Parity.Revivecare.test"
+  },
+  "patient_gone": {
+    "email": "gone@parity.revivecare.test"
+  },
+  "patient_gone_chat": {
+    "email": "gone.chat@parity.revivecare.test"
+  }
+}
