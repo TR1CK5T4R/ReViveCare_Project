@@ -309,3 +309,335 @@ function bandOf(score) {
   if (score > 0.3) return 'monitor';
   return 'low';
 }
+
+function makeChatMessages(patients, firstId) {
+  const rows = [];
+  const turnsByActivity = { none: [0, 0], light: [5, 20], regular: [20, 60], heavy: [60, 120] };
+  for (const patient of patients) {
+    const [min, max] = turnsByActivity[patient.activity];
+    let turnsLeft = faker.number.int({ min, max });
+    while (turnsLeft > 0) {
+      const turns = Math.min(turnsLeft, faker.number.int({ min: 1, max: 6 }));
+      turnsLeft -= turns;
+      // The view lower-cases language; anything but 'hindi' is answered in English.
+      const language = weighted([
+        [72, 'english'],
+        [25, 'hindi'],
+        [2, 'hi'],
+        [1, 'tamil'],
+      ]);
+      const texts = CHAT[language === 'hindi' ? 'hindi' : 'english'];
+      let sentAt = between(patient.created_at, REFERENCE_DATE);
+      for (let t = 0; t < turns; t += 1) {
+        const score = aiScore();
+        const [question, answer] = pick(texts[bandOf(score)]);
+        rows.push({
+          id: firstId + rows.length,
+          patient_id: patient.id,
+          sender: 'patient',
+          message: question,
+          language,
+          seriousness_score: 0.0,
+          sent_at: sentAt,
+        });
+        sentAt = new Date(sentAt.getTime() + faker.number.int({ min: 2, max: 15 }) * 1000);
+        rows.push({
+          id: firstId + rows.length,
+          patient_id: patient.id,
+          sender: 'ai',
+          message: answer,
+          language,
+          seriousness_score: score,
+          sent_at: sentAt,
+        });
+        sentAt = new Date(sentAt.getTime() + faker.number.int({ min: 20, max: 600 }) * 1000);
+      }
+    }
+  }
+  return rows;
+}
+
+function makeReports(patients, doctors, firstId) {
+  const rows = [];
+  for (const patient of patients) {
+    if (patient.activity === 'none') continue;
+    const count = faker.number.int({ min: 1, max: 5 });
+    for (let r = 0; r < count; r += 1) {
+      const type = weighted([
+        [35, 'lab'],
+        [20, 'imaging'],
+        [15, 'discharge'],
+        [25, 'prescription'],
+        [5, 'other'],
+      ]);
+      const id = firstId + rows.length;
+      const uploader = weighted([
+        [80, 'assigned'],
+        [10, 'other'],
+        [10, 'none'],
+      ]);
+      rows.push({
+        id,
+        patient_id: patient.id,
+        report_type: type,
+        title: pick(REPORT_TITLES[type]),
+        description: chance(0.6) ? 'Reviewed with the patient during follow-up.' : null,
+        file_url: chance(0.85) ? `https://files.revivecare.test/reports/${patient.id}/${id}.pdf` : null,
+        uploaded_by_doctor_id:
+          uploader === 'assigned' ? patient.assigned_doctor_id : uploader === 'other' ? pick(doctors).id : null,
+        created_at: between(patient.created_at, REFERENCE_DATE),
+      });
+    }
+  }
+  return rows;
+}
+
+// express-session rows in the shape connect-pg-simple stores. Steady state with
+// the store's default 15-minute pruning: most sessions are live (expire within
+// the next 24 h); about 1.5% expired since the last prune.
+function makeSessions(patients) {
+  const now = Date.now();
+  const sids = new Set();
+  const rows = [];
+  while (rows.length < SESSION_ROW_COUNT) {
+    const sid = faker.string.alphanumeric(32);
+    if (sids.has(sid)) continue;
+    sids.add(sid);
+    const patient = pick(patients);
+    const expire = new Date(
+      chance(0.015)
+        ? now - faker.number.int({ min: 1, max: 15 * 60 }) * 1000
+        : now + faker.number.int({ min: 60, max: 86_400 }) * 1000,
+    );
+    const historyItems = weighted([
+      [40, 0],
+      [50, 2 * faker.number.int({ min: 1, max: 9 })],
+      [10, 20],
+    ]); // max 20 (R-CHAT-03)
+    const chatHistory = [];
+    for (let h = 0; h < historyItems; h += 2) {
+      const [question, answer] = pick(CHAT.english.low);
+      chatHistory.push({ role: 'user', content: question }, { role: 'assistant', content: answer });
+    }
+    const sess = {
+      cookie: {
+        originalMaxAge: 86_400_000,
+        expires: expire.toISOString(),
+        secure: false,
+        httpOnly: true,
+        path: '/',
+        sameSite: 'lax',
+      },
+      patient_id: patient.id,
+      patient_email: patient.email,
+      patient_name: patient.name,
+      chat_history: chatHistory,
+    };
+    rows.push({ sid, sess: JSON.stringify(sess), expire });
+  }
+  return rows;
+}
+
+// ─── Main ────────────────────────────────────────────────────────────────────
+
+async function nextId(client, table) {
+  const { rows } = await query(`SELECT COALESCE(max(id), 0) + 1 AS next FROM ${table}`, [], client);
+  return rows[0].next;
+}
+
+async function printSummary(dbName) {
+  const lines = [`Seed summary (${dbName}):`];
+  for (const table of [
+    'users',
+    'doctors',
+    'patients',
+    'exercise_types',
+    'exercise_sessions',
+    'chat_messages',
+    'patient_reports',
+    'sessions',
+  ]) {
+    const { rows } = await query(`SELECT count(*) AS n FROM ${table}`);
+    lines.push(`  ${table.padEnd(18)} ${rows[0].n}`);
+  }
+  const { rows: bands } = await query(`
+    SELECT CASE WHEN seriousness_score > 0.75 THEN '> 0.75 (alert)'
+                WHEN seriousness_score > 0.60 THEN '0.61-0.75'
+                WHEN seriousness_score > 0.30 THEN '0.31-0.60'
+                ELSE '0.00-0.30' END AS band,
+           count(*) AS n
+      FROM chat_messages WHERE sender = 'ai' GROUP BY 1 ORDER BY 1`);
+  lines.push('  AI seriousness bands: ' + bands.map((b) => `${b.band}: ${b.n}`).join(', '));
+  const { rows: edges } = await query(`
+    SELECT count(*) FILTER (WHERE seriousness_score = 0.75) AS exactly_threshold,
+           count(*) FILTER (WHERE seriousness_score = 1.0)  AS at_ceiling,
+           count(*) FILTER (WHERE seriousness_score = 0.0)  AS zero
+      FROM chat_messages WHERE sender = 'ai'`);
+  lines.push(
+    `  AI scores exactly 0.75: ${edges[0].exactly_threshold}, exactly 1.0: ${edges[0].at_ceiling}, exactly 0.0: ${edges[0].zero}`,
+  );
+  const { rows: s } = await query(
+    `SELECT count(*) FILTER (WHERE expire < now()) AS expired, count(*) AS total FROM sessions`,
+  );
+  lines.push(`  sessions expired (prunable now): ${s[0].expired} of ${s[0].total}`);
+  console.log(lines.join('\n'));
+}
+
+async function main() {
+  const { values: args } = parseArgs({
+    options: {
+      database: { type: 'string', default: 'DATABASE_URL' },
+      'only-if-empty': { type: 'boolean', default: false },
+    },
+  });
+  const target = resolveDatabase(args.database);
+  assertDisposableDatabase(target.dbName, 'seed');
+  const password = process.env.SEED_USER_PASSWORD;
+  if (!password) throw new Error('SEED_USER_PASSWORD is not set (add it to .env)');
+
+  initPool({ connectionString: target.url, applicationName: 'revivecare-seed' });
+
+  if (args['only-if-empty']) {
+    const { rows } = await query('SELECT count(*) AS n FROM users');
+    if (rows[0].n > 0) {
+      console.log(`${target.dbName} already has ${rows[0].n} users; --only-if-empty, so nothing was seeded`);
+      return;
+    }
+  }
+
+  faker.seed(42);
+  faker.setDefaultRefDate(REFERENCE_DATE);
+  // One hash for every seeded user: 1.2M PBKDF2 iterations take about a second,
+  // and per-user salts would add nothing for fake accounts.
+  const passwordHash = await makePassword(password, { salt: faker.string.alphanumeric(22) });
+
+  await withTransaction(async (client) => {
+    const firstUserId = await nextId(client, 'users');
+    const doctors = makeDoctors(firstUserId, await nextId(client, 'doctors'), passwordHash);
+    const patients = makePatients(
+      firstUserId + doctors.length,
+      await nextId(client, 'patients'),
+      doctors,
+      passwordHash,
+    );
+    applyEdgeCases(patients, doctors);
+    const exerciseSessions = makeExerciseSessions(patients, await nextId(client, 'exercise_sessions'));
+    const chatMessages = makeChatMessages(patients, await nextId(client, 'chat_messages'));
+    const reports = makeReports(patients, doctors, await nextId(client, 'patient_reports'));
+    const sessions = makeSessions(patients);
+
+    const userColumns = [
+      ['id', 'bigint'],
+      ['role', 'text'],
+      ['name', 'text'],
+      ['email', 'text'],
+      ['password', 'text'],
+      ['phone', 'text'],
+      ['is_active', 'boolean'],
+      ['created_at', 'timestamptz'],
+      ['updated_at', 'timestamptz'],
+    ];
+    await bulkInsert(
+      client,
+      'users',
+      userColumns,
+      [...doctors, ...patients].map((u) => ({ ...u, id: u.user_id })),
+    );
+    await bulkInsert(
+      client,
+      'doctors',
+      [
+        ['id', 'bigint'],
+        ['user_id', 'bigint'],
+        ['specialty', 'text'],
+        ['license_number', 'text'],
+      ],
+      doctors,
+    );
+    await bulkInsert(
+      client,
+      'patients',
+      [
+        ['id', 'bigint'],
+        ['user_id', 'bigint'],
+        ['age', 'integer'],
+        ['gender', 'text'],
+        ['address', 'text'],
+        ['info', 'text'],
+        ['assigned_doctor_id', 'bigint'],
+      ],
+      patients,
+    );
+    await bulkInsert(
+      client,
+      'exercise_sessions',
+      [
+        ['id', 'bigint'],
+        ['patient_id', 'bigint'],
+        ['exercise_type', 'text'],
+        ['start_time', 'timestamptz'],
+        ['end_time', 'timestamptz'],
+        ['target_reps', 'integer'],
+        ['excellent_reps', 'integer'],
+        ['good_reps', 'integer'],
+        ['partial_reps', 'integer'],
+        ['accuracy_score', 'double precision'],
+        ['notes', 'text'],
+      ],
+      exerciseSessions,
+    );
+    await bulkInsert(
+      client,
+      'chat_messages',
+      [
+        ['id', 'bigint'],
+        ['patient_id', 'bigint'],
+        ['sender', 'text'],
+        ['message', 'text'],
+        ['language', 'text'],
+        ['seriousness_score', 'double precision'],
+        ['sent_at', 'timestamptz'],
+      ],
+      chatMessages,
+    );
+    await bulkInsert(
+      client,
+      'patient_reports',
+      [
+        ['id', 'bigint'],
+        ['patient_id', 'bigint'],
+        ['report_type', 'text'],
+        ['title', 'text'],
+        ['description', 'text'],
+        ['file_url', 'text'],
+        ['uploaded_by_doctor_id', 'bigint'],
+        ['created_at', 'timestamptz'],
+      ],
+      reports,
+    );
+    await bulkInsert(
+      client,
+      'sessions',
+      [
+        ['sid', 'text'],
+        ['sess', 'json'],
+        ['expire', 'timestamptz'],
+      ],
+      sessions,
+    );
+    await resetIdentitySequences(client);
+  });
+
+  // Fresh planner statistics after a bulk load, so query plans reflect the new data.
+  await query('ANALYZE');
+  await printSummary(target.dbName);
+}
+
+try {
+  await main();
+} catch (err) {
+  console.error(err.message);
+  process.exitCode = 1;
+} finally {
+  await closePool();
+}
