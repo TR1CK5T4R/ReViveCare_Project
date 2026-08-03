@@ -17,3 +17,14 @@ export function normalizeLoginEmail(formValue) {
   const value = Array.isArray(formValue) ? formValue[formValue.length - 1] : formValue;
   return pyLower(pyStrip(typeof value === 'string' ? value : ''));
 }
+
+/**
+ * The patient this email logs in as, or null. The password is not checked:
+ * Django's patient login is email-only (preserved).
+ *
+ * @param {string} email already normalised
+ * @returns {Promise<{ id: number, name: string, email: string } | null>}
+ */
+export async function findLoginPatient(email) {
+  return findPatientByEmail(email);
+}
