@@ -62,4 +62,72 @@ describe('POST /login/ (E07)', () => {
     expect(res.headers.location).toBe('/');
   });
 
+  it('redirects an unknown email to / without setting a session cookie', async () => {
+    const { res } = await login('nobody@example.test');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/');
+    expect(setCookies(res).sessionid).toBeUndefined();
+    expect((await query('SELECT count(*) AS n FROM sessions')).rows[0].n).toBe(0);
+  });
+
+  it('ignores the password field (email-only login)', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const res = await request(app).post('/login/').type('form').send({ email: 'asha@example.test', password: 'wrong' });
+    expect(res.headers.location).toBe('/patient/dashboard/');
+  });
+
+  it('uses the last value of a repeated email field, like QueryDict.get', async () => {
+    await createPatient({ email: 'second@example.test' });
+    const res = await request(app)
+      .post('/login/')
+      .type('form')
+      .send('email=first%40example.test&email=second%40example.test');
+    expect(res.headers.location).toBe('/patient/dashboard/');
+  });
+
+  it('answers 500 for a NUL byte in the email, like Django on Postgres', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const res = await request(app).post('/login/').type('form').send('email=asha%00%40example.test');
+    expect(res.status).toBe(500);
+    expect(res.text).toContain('<h1>Server Error (500)</h1>');
+    expect(setCookies(res).sessionid).toBeUndefined();
+  });
+
+  it('treats a JSON body as an empty email (Django reads request.POST only)', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const res = await request(app).post('/login/').send({ email: 'asha@example.test' });
+    expect(res.headers.location).toBe('/');
+  });
+
+  it('needs no CSRF token (@csrf_exempt)', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const res = await request(app)
+      .post('/login/')
+      .set('Origin', 'http://evil.test')
+      .type('form')
+      .send({ email: 'asha@example.test' });
+    expect(res.headers.location).toBe('/patient/dashboard/');
+  });
+
+  it('regenerates the session on success: new id, old row and data gone', async () => {
+    const asha = await createPatient({ email: 'asha@example.test' });
+    const ravi = await createPatient({ email: 'ravi@example.test' });
+    const { agent, res: first } = await login('asha@example.test');
+    const firstSid = sidFromCookieValue(setCookies(first).sessionid.value);
+    // Simulate chat history left by the first patient.
+    await query(
+      `UPDATE sessions SET sess = jsonb_set(sess::jsonb, '{chat_history}', '[{"role":"user","content":"x"}]')::json WHERE sid = $1`,
+      [firstSid],
+    );
+
+    const { res: second } = await login('ravi@example.test', agent);
+    const secondSid = sidFromCookieValue(setCookies(second).sessionid.value);
+    expect(secondSid).not.toBe(firstSid);
+    expect(await sessionData(firstSid)).toBeNull();
+    const data = await sessionData(secondSid);
+    expect(data.patient_id).toBe(ravi.id);
+    expect(data.chat_history).toBeUndefined();
+    expect(asha.id).not.toBe(ravi.id);
+  });
+
 });
