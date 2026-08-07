@@ -130,4 +130,65 @@ describe('POST /login/ (E07)', () => {
     expect(asha.id).not.toBe(ravi.id);
   });
 
+  it('leaves an existing session untouched when the login fails (as Django does)', async () => {
+    const asha = await createPatient({ email: 'asha@example.test' });
+    const { agent, res } = await login('asha@example.test');
+    const sid = sidFromCookieValue(setCookies(res).sessionid.value);
+    const { res: failed } = await login('nobody@example.test', agent);
+    expect(failed.headers.location).toBe('/');
+    expect((await sessionData(sid)).patient_id).toBe(asha.id);
+  });
+
+  it('does not serve the Django HTML login page: GET /login/ is 404', async () => {
+    const res = await request(app).get('/login/');
+    expect(res.status).toBe(404);
+  });
+
+  it.each(['put', 'patch', 'delete', 'head', 'options'])(
+    '%s /login/ (dropped HTML view) is 404 too',
+    async (method) => {
+      const res = await request(app)[method]('/login/');
+      expect(res.status).toBe(404);
+      expect(res.headers.allow).toBeUndefined();
+    },
+  );
+});
+
+describe('/patient/logout/ (E09)', () => {
+  it('GET flushes the session, deletes the cookie and redirects to /', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const { agent, res } = await login('asha@example.test');
+    const sid = sidFromCookieValue(setCookies(res).sessionid.value);
+    const out = await agent.get('/patient/logout/');
+    expect(out.status).toBe(302);
+    expect(out.headers.location).toBe('/');
+    const cleared = setCookies(out).sessionid;
+    expect(cleared.value).toBe('');
+    expect(Date.parse(cleared.attributes.expires)).toBe(0);
+    expect(cleared.attributes).toMatchObject({ path: '/', samesite: 'Lax' });
+    expect(await sessionData(sid)).toBeNull();
+  });
+
+  it('adds Vary: Cookie (flush accesses the session)', async () => {
+    expect((await request(app).get('/patient/logout/')).headers.vary).toMatch(/Cookie/);
+  });
+
+  it('HEAD flushes the session too (Django: any method)', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const { agent, res } = await login('asha@example.test');
+    const sid = sidFromCookieValue(setCookies(res).sessionid.value);
+    const out = await agent.head('/patient/logout/');
+    expect(out.status).toBe(302);
+    expect(await sessionData(sid)).toBeNull();
+  });
+
+  it('PUT and DELETE with cookie + X-CSRFToken log out, like POST', async () => {
+    for (const method of ['put', 'delete']) {
+      const agent = request.agent(app);
+      const token = await csrfToken(agent);
+      const res = await agent[method]('/patient/logout/').set('X-CSRFToken', token).set('Origin', TRUSTED_ORIGIN);
+      expect(res.status).toBe(302);
+    }
+  });
+
 });
