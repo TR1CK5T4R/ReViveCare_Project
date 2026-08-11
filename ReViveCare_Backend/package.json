@@ -23,6 +23,19 @@
     "db:etl": "node scripts/etl-from-django.js",
     "bench:prepare": "node scripts/migrate.js --database PARITY_DATABASE_URL --reset && node scripts/migrate.js --database PARITY_DATABASE_URL --to 0006 && node scripts/seed.js --database PARITY_DATABASE_URL",
     "bench:baseline": "node scripts/bench-queries.js --database PARITY_DATABASE_URL --save bench/baseline.json",
-    "bench:indexed": "node scripts/migrate.js --database PARITY_DATABASE_URL && node scripts/bench-queries.js --database PARITY_DATABASE_URL --save bench/indexed.json"
+    "bench:indexed": "node scripts/migrate.js --database PARITY_DATABASE_URL && node scripts/bench-queries.js --database PARITY_DATABASE_URL --save bench/indexed.json",
+    "bench:compare": "node scripts/bench-queries.js --compare bench/baseline.json bench/indexed.json",
+    "bench": "npm run bench:prepare && npm run bench:baseline && npm run bench:indexed && npm run bench:compare",
+    "seed": "node scripts/seed.js",
+    "etl": "node scripts/etl-from-django.js",
+    "parity": "bash ../parity-tools/reset.sh && node scripts/parity/run.js",
+    "groq:smoke": "GROQ_LIVE=1 node scripts/groq-live.js smoke",
+    "groq:capture": "GROQ_LIVE=1 node scripts/groq-live.js capture"
+  },
+  "dependencies": {
+    "connect-pg-simple": "10.0.0",
+    "cookie-parser": "1.4.7",
+    "cors": "2.8.5",
+    "csrf-csrf": "4.0.3"
   }
 }
