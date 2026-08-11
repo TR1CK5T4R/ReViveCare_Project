@@ -1,0 +1,66 @@
+[
+  {
+    "name": "GET /csrf/ sets the readable csrftoken cookie",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/csrf/",
+        "compare_headers": [
+          "vary"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "POST /csrf/ without a token is rejected by CSRF",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/csrf/"
+      }
+    ]
+  },
+  {
+    "name": "GET /csrf/ twice re-sends the same cookie with a renewed expiry",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/csrf/"
+      },
+      {
+        "method": "GET",
+        "path": "/csrf/"
+      }
+    ]
+  },
+  {
+    "name": "GET /csrf/ replaces a malformed csrftoken cookie",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/csrf/",
+        "headers": {
+          "Cookie": "csrftoken=not-a-valid-token"
+        }
+      }
+    ]
+  },
+  {
+    "name": "HEAD /csrf/ (safe method) sets the cookie",
+    "steps": [
+      {
+        "method": "HEAD",
+        "path": "/csrf/"
+      }
+    ]
+  },
+  {
+    "name": "plain OPTIONS /csrf/ (not a preflight) reaches the view",
+    "steps": [
+      {
+        "method": "OPTIONS",
+        "path": "/csrf/"
+      }
+    ]
+  }
+]
