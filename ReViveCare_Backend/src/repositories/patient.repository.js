@@ -22,3 +22,23 @@ export async function findPatientByEmail(email, client) {
   );
   return rows[0] ?? null;
 }
+
+/**
+ * Find a patient by id, like Django's Patient.objects.get(id=patient_id).
+ * No is_active filter and no ordering: .get() has neither.
+ *
+ * @param {number} id patients.id (the id Django used)
+ * @param {import('pg').PoolClient} [client]
+ * @returns {Promise<{ id: number, name: string, email: string, info: string } | null>}
+ */
+export async function findPatientById(id, client) {
+  const { rows } = await query(
+    `SELECT p.id, u.name, u.email, p.info
+       FROM patients p
+       JOIN users u ON u.id = p.user_id
+      WHERE p.id = $1`,
+    [id],
+    client,
+  );
+  return rows[0] ?? null;
+}
