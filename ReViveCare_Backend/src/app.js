@@ -28,3 +28,23 @@ import { createRouter } from './routes/index.js';
 
 // Django's STATICFILES_DIRS (Patients/static), copied into the Node project.
 const STATIC_ROOT = path.join(import.meta.dirname, '..', 'static');
+
+/**
+ * @param {{ config: object, logger: import('pino').Logger }} deps
+ * @returns {import('express').Express} app; app.locals.sessionStore must be closed on shutdown
+ */
+export function createApp({ config, logger }) {
+  const app = express();
+  app.disable('x-powered-by');
+  // Django URL matching is exact: '/login' is not '/login/' and '/Login/' is not '/login/'.
+  app.set('strict routing', true);
+  app.set('case sensitive routing', true);
+
+  // 1. Trust proxy first: req.ip, req.protocol and secure cookies all depend on
+  //    it, and later middleware reads them.
+  app.set('trust proxy', config.trustProxy);
+
+  // 2. Request id before logging, so every log line of the request carries it.
+  app.use(requestId);
+
+}
