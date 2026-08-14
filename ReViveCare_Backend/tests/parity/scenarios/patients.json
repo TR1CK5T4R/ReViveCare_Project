@@ -97,5 +97,122 @@
         }
       }
     ]
+  },
+  {
+    "name": "upper-case Accept is not JSON mode (case-sensitive substring)",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Accept": "Application/JSON"
+        }
+      }
+    ]
+  },
+  {
+    "name": "HTML mode without a session redirects to /login/",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Accept": "text/html"
+        },
+        "compare_session": true,
+        "compare_headers": [
+          "vary"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "HTML mode while logged in: Django renders the dropped template",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Accept": "text/html"
+        }
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 1,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "patient_dashboard.html is dropped; Node answers 404 (redirects of HTML mode are kept)"
+      },
+      {
+        "step": 1,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "Django template HTML vs Django's 404 page"
+      }
+    ]
+  },
+  {
+    "name": "dashboard after the patient row was deleted: 404 JSON, then HTML mode redirects",
+    "actor": "patient_gone",
+    "steps": [
+      {
+        "action": "delete_patient",
+        "email": "gone@parity.revivecare.test"
+      },
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "compare_session": true,
+        "compare_headers": [
+          "vary"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "compare_session": true
+      }
+    ]
+  },
+  {
+    "name": "POST to the dashboard needs no CSRF token (@csrf_exempt) and ignores the body",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/dashboard/?id=1",
+        "headers": {
+          "Accept": "application/json",
+          "Origin": "http://evil.example"
+        },
+        "body": "{not json"
+      }
+    ]
+  },
+  {
+    "name": "HEAD and plain OPTIONS reach the dashboard view",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "HEAD",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      {
+        "method": "OPTIONS",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Accept": "application/json"
+        }
+      }
+    ]
   }
 ]
