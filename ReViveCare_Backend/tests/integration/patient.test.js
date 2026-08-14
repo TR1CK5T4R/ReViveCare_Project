@@ -74,4 +74,106 @@ describe('/patient/dashboard/ JSON mode (E08, what React calls)', () => {
     }
   });
 
+  describe('deletes a dead session cookie, like Django after a failed session load', () => {
+    it.each([
+      ['expired', "UPDATE sessions SET expire = now() - interval '1 minute'"],
+      ['deleted (unknown id)', 'DELETE FROM sessions'],
+    ])('%s session, JSON and HTML mode', async (_label, sql) => {
+      await createPatient({ email: 'asha@example.test' });
+      const { cookie: sessionCookie } = await loggedIn('asha@example.test');
+      await query(sql);
+      for (const headers of [REACT_HEADERS, { Accept: 'text/html' }]) {
+        const res = await request(app)
+          .get('/patient/dashboard/')
+          .set(headers)
+          .set('Cookie', `sessionid=${sessionCookie}`);
+        expect(res.status).toBe(headers === REACT_HEADERS ? 401 : 302);
+        const cookie = setCookies(res).sessionid;
+        expect(cookie.value).toBe('');
+        expect(cookie.attributes).toMatchObject({
+          path: '/',
+          samesite: 'Lax',
+          expires: 'Thu, 01 Jan 1970 00:00:00 GMT',
+        });
+      }
+    });
+
+    it('sends no deletion when there is no session cookie at all', async () => {
+      const res = await request(app).get('/patient/dashboard/').set(REACT_HEADERS);
+      expect(res.headers['set-cookie']).toBeUndefined();
+    });
+  });
+
+  it('returns 401 {"error": "Not authenticated"} without a session, and creates none', async () => {
+    const res = await request(app).get('/patient/dashboard/').set(REACT_HEADERS);
+    expect(res.status).toBe(401);
+    expect(res.headers['content-type']).toBe('application/json');
+    expect(res.text).toBe('{"error":"Not authenticated"}');
+    expect(res.headers.vary).toMatch(/Cookie/);
+    expect(setCookies(res).sessionid).toBeUndefined();
+    expect((await query('SELECT count(*) AS n FROM sessions')).rows[0].n).toBe(0);
+  });
+
+  it('returns 401 after logout', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const { agent } = await loggedIn('asha@example.test');
+    await agent.get('/patient/logout/');
+    expect((await agent.get('/patient/dashboard/').set(REACT_HEADERS)).status).toBe(401);
+  });
+
+  it('returns 404 {"error": "Patient not found"} when the patient was deleted, and keeps the session', async () => {
+    const patient = await createPatient({ email: 'gone@example.test' });
+    const { agent, cookie } = await loggedIn('gone@example.test');
+    await query('DELETE FROM users WHERE id = $1', [patient.userId]);
+    const res = await agent.get('/patient/dashboard/').set(REACT_HEADERS);
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toBe('application/json');
+    expect(res.body).toEqual({ error: 'Patient not found' });
+    expect(setCookies(res).sessionid).toBeUndefined();
+    const { cookie: _meta, ...data } = await sessionData(sidFromCookieValue(cookie));
+    expect(data.patient_id).toBe(patient.id);
+  });
+
+  it('does not filter on is_active, like Patient.objects.get(id=...)', async () => {
+    const patient = await createPatient({ email: 'inactive@example.test' });
+    const { agent } = await loggedIn('inactive@example.test');
+    await query('UPDATE users SET is_active = false WHERE id = $1', [patient.userId]);
+    expect((await agent.get('/patient/dashboard/').set(REACT_HEADERS)).status).toBe(200);
+  });
+
+  it('does not touch the session or re-send the cookie', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const { agent, cookie } = await loggedIn('asha@example.test');
+    const before = await sessionData(sidFromCookieValue(cookie));
+    const res = await agent.get('/patient/dashboard/').set(REACT_HEADERS);
+    expect(setCookies(res).sessionid).toBeUndefined();
+    expect(await sessionData(sidFromCookieValue(cookie))).toEqual(before);
+  });
+});
+
+describe('JSON-mode detection (R-AUTH-02)', () => {
+  // [headers, JSON mode?]: Content-Type must *equal* application/json; Accept must *contain* it.
+  const cases = [
+    [{ 'Content-Type': 'application/json' }, true],
+    [{ Accept: 'application/json' }, true],
+    [{ Accept: 'text/html, application/json;q=0.9' }, true],
+    [{ Accept: 'xapplication/jsonx' }, true],
+    [{ 'Content-Type': 'application/json; charset=utf-8' }, false],
+    [{ 'Content-Type': 'Application/JSON' }, false],
+    [{ Accept: 'Application/JSON' }, false],
+    [{ Accept: 'application/*' }, false],
+    [{ Accept: '*/*' }, false],
+    [{ Accept: 'text/html' }, false],
+    [{}, false],
+  ];
+  it.each(cases)('%j → JSON mode %s', async (headers, json) => {
+    const res = await request(app).get('/patient/dashboard/').set(headers);
+    if (json) {
+      expect(res.status).toBe(401);
+      expect(res.body).toEqual({ error: 'Not authenticated' });
+    } else {
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toBe('/login/');
+    }
+  });
 });
