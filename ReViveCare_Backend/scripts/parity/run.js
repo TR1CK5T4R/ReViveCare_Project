@@ -68,4 +68,80 @@ function send(baseUrl, step, jar) {
   if (jar.size > 0) headers.Cookie = [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
   if (step.csrf && jar.has('csrftoken')) headers['X-CSRFToken'] = decodeURIComponent(jar.get('csrftoken'));
 
+  return new Promise((resolve, reject) => {
+    // The path goes out exactly as written: `new URL()` would resolve dot
+    // segments (also %2e%2e) and hide what a raw client can send.
+    // agent:false = a fresh connection per request: Django's runserver leaves the
+    // unread bytes of a chunked body on a kept-alive socket and parses them as the next request.
+    const target = {
+      hostname: url.hostname,
+      port: url.port,
+      path: step.path,
+      method: step.method,
+      headers,
+      agent: false,
+    };
+    const req = http.request(target, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, raw: Buffer.concat(chunks) }));
+    });
+    req.on('error', reject);
+    if (body !== undefined) req.write(body);
+    req.end();
+  });
+}
+
+// Text bodies are compared as text; anything else (e.g. the static videos) by
+// size and SHA-256, so the report stays readable.
+function bodyOf(res) {
+  const type = res.headers['content-type'] ?? 'text/';
+  if (/^(text\/|application\/json)/.test(type)) return res.raw.toString('utf8');
+  return `${res.raw.length} bytes, sha256 ${createHash('sha256').update(res.raw).digest('hex')}`;
+}
+
+function parseSetCookie(header, dateHeader) {
+  const [pair, ...attrs] = header.split(';').map((p) => p.trim());
+  const eq = pair.indexOf('=');
+  const cookie = { name: pair.slice(0, eq), value: pair.slice(eq + 1), attrs: {} };
+  for (const a of attrs) {
+    const [k, ...rest] = a.split('=');
+    cookie.attrs[k.toLowerCase()] = rest.length ? rest.join('=') : true;
+  }
+  // Lifetime in seconds, from Max-Age or Expires (relative to the response Date).
+  const now = dateHeader ? Date.parse(dateHeader) : Date.now();
+  if (cookie.attrs['max-age'] !== undefined) cookie.lifetime = Number(cookie.attrs['max-age']);
+  else if (cookie.attrs.expires) cookie.lifetime = Math.round((Date.parse(cookie.attrs.expires) - now) / 1000);
+  else cookie.lifetime = null; // browser-session cookie
+  return cookie;
+}
+
+function updateJar(jar, cookies) {
+  for (const c of cookies) {
+    if (c.lifetime !== null && c.lifetime <= 0) jar.delete(c.name);
+    else jar.set(c.name, c.value);
+  }
+}
+
+// ─── Session decoding ────────────────────────────────────────────────────────
+
+// Django 6 stores signing.dumps(data, compress=True): "<payload>:<timestamp>:<signature>",
+// payload = urlsafe base64 JSON, zlib-compressed when it starts with '.'.
+function djangoSession(sessionKey) {
+  if (!sessionKey) return null;
+  const db = new Database(DJANGO_DB, { readonly: true, fileMustExist: true });
+  try {
+    const row = db
+      .prepare("SELECT session_data FROM django_session WHERE session_key = ? AND expire_date > datetime('now')")
+      .get(sessionKey);
+    if (!row) return null;
+    let payload = row.session_data.split(':')[0];
+    const compressed = payload.startsWith('.');
+    if (compressed) payload = payload.slice(1);
+    let bytes = Buffer.from(payload, 'base64url');
+    if (compressed) bytes = inflateSync(bytes);
+    return JSON.parse(bytes.toString('utf8'));
+  } finally {
+    db.close();
+  }
 }

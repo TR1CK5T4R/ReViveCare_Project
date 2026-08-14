@@ -19,3 +19,19 @@ import django  # noqa: E402
 django.setup()
 
 from Patients.models import Patient  # noqa: E402
+
+PARITY_PATIENTS = [
+    {"name": "Parity Asha", "email": "asha@parity.revivecare.test",
+     "info": "Left knee ACL repair on 2026-01-10. Mild swelling.", "password": "parity-pass-asha"},
+    {"name": "Parity Ravi", "email": "ravi@parity.revivecare.test",
+     "info": "Total hip replacement. Uses a walker.", "password": "parity-pass-ravi"},
+    # stored with capitals, so login (which lower-cases) can never find it.
+    {"name": "Parity Mixed Case", "email": "Mixed.Case@Parity.Revivecare.test",
+     "info": "Stored with a mixed-case email.", "password": "parity-pass-mixed"},
+    # Deleted mid-scenario (runner action delete_patient) to reach the dashboard's
+    # "Patient not found" branch; no other scenario uses it.
+    {"name": "Parity Gone", "email": "gone@parity.revivecare.test",
+     "info": "Deleted during the dashboard scenario.", "password": "parity-pass-gone"},
+    {"name": "Parity Gone Chat", "email": "gone.chat@parity.revivecare.test",
+     "info": "Deleted during the chat scenario.", "password": "parity-pass-gone-chat"},
+]
