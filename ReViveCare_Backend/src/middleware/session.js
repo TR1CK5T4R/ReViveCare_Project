@@ -25,4 +25,46 @@ export function createSession({ config, pool, logger }) {
     errorLog: (...args) => logger.error({ detail: String(args[0]) }, 'session store error'),
   });
 
+  const middleware = session({
+    name: config.session.cookieName,
+    secret: config.session.secret,
+    store,
+    // Like Django: write the session and send the cookie only when the session
+    // data changed (SESSION_SAVE_EVERY_REQUEST is False), and never create
+    // empty sessions for anonymous visitors.
+    resave: false,
+    saveUninitialized: false,
+    rolling: false,
+    cookie: {
+      // Django settings.py:169-172
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: config.session.cookieSecure,
+      maxAge: config.session.maxAgeSeconds * 1000,
+      path: '/',
+    },
+  });
+
+  return { middleware, store };
+}
+
+/**
+ * Delete the browser's session cookie when it points at no session data, for
+ * views that read the session and found it empty. express-session silently
+ * starts a fresh session for an expired, unknown or forged cookie and leaves
+ * the cookie alone; Django's SessionMiddleware deletes it instead (the load
+ * failed, so the session "is empty").
+ *
+ * Django parity: django/contrib/sessions/middleware.py process_response (delete_cookie branch)
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {string} cookieName
+ */
+export function clearDeadSessionCookie(req, res, cookieName) {
+  const hasData = Object.keys(req.session ?? {}).some((key) => key !== 'cookie');
+  if (req.cookies?.[cookieName] !== undefined && !hasData) {
+    // Same deletion as logout.
+    res.clearCookie(cookieName, { path: '/', sameSite: 'lax' });
+  }
 }
