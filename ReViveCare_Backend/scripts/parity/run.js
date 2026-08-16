@@ -145,3 +145,84 @@ function djangoSession(sessionKey) {
     db.close();
   }
 }
+
+async function nodeSession(cookieValue) {
+  if (!cookieValue) return null;
+  const decoded = decodeURIComponent(cookieValue);
+  const sid = decoded.slice(2, decoded.lastIndexOf('.')); // "s:<sid>.<signature>"
+  const { rows } = await query('SELECT sess FROM sessions WHERE sid = $1 AND expire > now()', [sid]);
+  if (rows.length === 0) return null;
+  const { cookie: _cookieSettings, ...data } = rows[0].sess; // express-session bookkeeping
+  return data;
+}
+
+// ─── Data actions (change both sides the same way between HTTP steps) ─────────
+
+// { "action": "delete_patient", "email": ... }: the patient row disappears
+// after login, as if deleted through the Django admin. The Django side writes
+// only to the throwaway copy's database (.parity-work/django_ref).
+async function deletePatient(email) {
+  const db = new Database(DJANGO_DB, { fileMustExist: true });
+  try {
+    const { changes } = db.prepare('DELETE FROM "Patients_patient" WHERE email = ?').run(email);
+    if (changes !== 1) throw new Error(`delete_patient: ${email} not found in the Django copy`);
+  } finally {
+    db.close();
+  }
+  // users → patients is ON DELETE CASCADE (0002_patients_doctors.sql).
+  const { rowCount } = await query("DELETE FROM users WHERE email = $1 AND role = 'patient'", [email]);
+  if (rowCount !== 1) throw new Error(`delete_patient: ${email} not found in Postgres`);
+}
+
+const ACTIONS = { delete_patient: (step) => deletePatient(step.email) };
+
+// ─── Stored rows (write scenarios: "compare_patients": true) ───────────────────
+
+// Every patient's business columns, in id order, as Django stored them.
+function djangoPatients() {
+  const db = new Database(DJANGO_DB, { readonly: true, fileMustExist: true });
+  try {
+    return db
+      .prepare(
+        `SELECT id, name, email, info, password, phone, age, gender, address, assigned_doctor_id, is_active
+           FROM "Patients_patient" ORDER BY id`,
+      )
+      .all()
+      .map((row) => ({ ...row, is_active: row.is_active === 1 }));
+  } finally {
+    db.close();
+  }
+}
+
+// A readable, privacy-safe summary for the report: which ids/columns differ.
+// Values are shown only for synthetic patients (emails ending in .test); the
+// snapshot also holds real patients, whose data must not reach report.md.
+function rowDiff(djangoRows, nodeRows) {
+  const byId = (rows) => new Map(rows.map((r) => [r.id, r]));
+  const d = byId(djangoRows);
+  const n = byId(nodeRows);
+  const out = { django: [], node: [] };
+  for (const id of new Set([...d.keys(), ...n.keys()])) {
+    const a = d.get(id);
+    const b = n.get(id);
+    const columns = Object.keys(a ?? b).filter((c) => stable(a?.[c]) !== stable(b?.[c]));
+    if (!columns.length) continue;
+    const show = (row) => {
+      if (!row) return { id, row: 'missing' };
+      if (!String(row.email).endsWith('.test')) return { id, row: `columns differ: ${columns.join(', ')}` };
+      return { id, ...Object.fromEntries(columns.map((c) => [c, row[c]])) };
+    };
+    out.django.push(show(a));
+    out.node.push(show(b));
+  }
+  return out;
+}
+
+async function nodePatients() {
+  const { rows } = await query(
+    `SELECT p.id, u.name, u.email, p.info, u.password, u.phone, p.age, p.gender, p.address,
+            p.assigned_doctor_id, u.is_active
+       FROM patients p JOIN users u ON u.id = p.user_id ORDER BY p.id`,
+  );
+  return rows;
+}
