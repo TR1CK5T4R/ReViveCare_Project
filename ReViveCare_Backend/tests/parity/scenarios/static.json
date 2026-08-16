@@ -1,0 +1,76 @@
+[
+  {
+    "name": "the four demo videos React plays are byte-identical",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/static/Patients/videos/bc.mp4",
+        "compare_headers": [
+          "content-length",
+          "last-modified"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/static/Patients/videos/sl.mp4",
+        "compare_headers": [
+          "content-length",
+          "last-modified"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/static/Patients/videos/jj.mp4",
+        "compare_headers": [
+          "content-length",
+          "last-modified"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/static/Patients/videos/ar.mp4",
+        "compare_headers": [
+          "content-length",
+          "last-modified"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "HEAD on a video",
+    "steps": [
+      {
+        "method": "HEAD",
+        "path": "/static/Patients/videos/bc.mp4",
+        "compare_headers": [
+          "content-length",
+          "last-modified"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "a percent-encoded video path",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/static/Patients/videos/b%63.mp4",
+        "compare_headers": [
+          "content-length"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "If-Modified-Since in the future: 304",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/static/Patients/videos/bc.mp4",
+        "headers": {
+          "If-Modified-Since": "Fri, 01 Jan 2100 00:00:00 GMT"
+        }
+      }
+    ]
+  }
+]
