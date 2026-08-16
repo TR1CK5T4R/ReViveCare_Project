@@ -51,4 +51,33 @@ describe('GET /static/Patients/videos/<file> (E22)', () => {
     expect(res.text).toBeUndefined();
   });
 
+  it('supports Range requests (how <video> seeks), like WhiteNoise', async () => {
+    const res = await request(app)
+      .get('/static/Patients/videos/bc.mp4')
+      .set('Range', 'bytes=0-99')
+      .buffer(true)
+      .parse(binary);
+    expect(res.status).toBe(206);
+    expect(res.headers['content-range']).toBe(`bytes 0-99/${statSync(path.join(VIDEOS, 'bc.mp4')).size}`);
+    expect(res.body).toEqual(readFileSync(path.join(VIDEOS, 'bc.mp4')).subarray(0, 100));
+  });
+
+  it('answers 304 to a matching If-Modified-Since or If-None-Match', async () => {
+    const first = await request(app).head('/static/Patients/videos/bc.mp4');
+    const byDate = await request(app)
+      .get('/static/Patients/videos/bc.mp4')
+      .set('If-Modified-Since', first.headers['last-modified']);
+    expect(byDate.status).toBe(304);
+    const byEtag = await request(app).get('/static/Patients/videos/bc.mp4').set('If-None-Match', first.headers.etag);
+    expect(byEtag.status).toBe(304);
+  });
+
+  it('decodes percent-encoded paths, like WSGI PATH_INFO', async () => {
+    expect((await request(app).head('/static/Patients/videos/b%63.mp4')).status).toBe(200);
+  });
+
+  describe('Range and preconditions, as WhiteNoise handles them', () => {
+    const size = () => statSync(path.join(VIDEOS, 'bc.mp4')).size;
+
+  });
 });

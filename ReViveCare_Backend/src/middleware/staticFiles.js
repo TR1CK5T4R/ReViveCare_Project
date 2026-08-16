@@ -44,4 +44,49 @@ export function staticFiles({ root }) {
     setHeaders: (res) => res.setHeader('Access-Control-Allow-Origin', '*'), // WHITENOISE_ALLOW_ALL_ORIGINS default
   });
 
+  return (req, res, next) => {
+    // WhiteNoise looks the decoded path up in its file table: exact and
+    // case-sensitive. Anything else falls through to Django's 404.
+    let filePath;
+    try {
+      filePath = decodeURIComponent(req.path);
+    } catch {
+      return next();
+    }
+    if (!files.has(filePath)) return next();
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      // Django parity: whitenoise/responders.py NOT_ALLOWED_RESPONSE (no body, no Content-Type).
+      res.status(405).setHeader('Allow', 'GET, HEAD');
+      return res.end();
+    }
+    // WhiteNoise never reads these. `send` would answer 412 or ignore the
+    // Range for them (whitenoise/responders.py get_response, is_not_modified).
+    delete req.headers['if-match'];
+    delete req.headers['if-unmodified-since'];
+    delete req.headers['if-range'];
+    serve(req, res, (err) => {
+      // An unsatisfiable Range comes back from `send` as an error. Answer it
+      // like WhiteNoise: 416, only Content-Range (send already set it), no body.
+      // Django parity: whitenoise/responders.py get_range_not_satisfiable_response
+      if (err?.status === 416 && !res.headersSent) {
+        for (const name of res.getHeaderNames()) {
+          if (FILE_HEADERS.has(name)) res.removeHeader(name);
+        }
+        res.status(416);
+        return res.end();
+      }
+      next(err);
+    });
+  };
 }
+
+// Headers `send` sets for the file before it checks the Range.
+const FILE_HEADERS = new Set([
+  'accept-ranges',
+  'cache-control',
+  'last-modified',
+  'etag',
+  'content-type',
+  'content-length',
+  'access-control-allow-origin',
+]);
