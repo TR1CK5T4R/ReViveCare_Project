@@ -47,4 +47,24 @@ export function createApp({ config, logger }) {
   // 2. Request id before logging, so every log line of the request carries it.
   app.use(requestId);
 
+  // 3. Request logging early, so even rejected requests (bad Host, CORS, 404) are logged.
+  //    Logs the patient id (never names, emails or cookies; see utils/logger.js).
+  app.use(
+    pinoHttp({
+      logger,
+      genReqId: (req) => req.id,
+      customProps: (req) => (req.session?.patient_id ? { patientId: req.session.patient_id } : {}),
+    }),
+  );
+
+  // 3b. Development only: how many app queries each request ran (debug log), to
+  //     spot N+1 loops. Off in production: it would log every request.
+  if (!config.isProduction) {
+    app.use((req, res, next) => {
+      const counter = { count: 0 };
+      res.on('finish', () => req.log.debug({ queries: counter.count }, 'queries per request'));
+      requestQueries.run(counter, next);
+    });
+  }
+
 }
