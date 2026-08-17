@@ -77,3 +77,78 @@ function decode(b) {
 }
 
 // ─── str → value: the C scanner behind json.loads (Lib/json/decoder.py, Modules/_json.c) ───
+
+// CPython refuses int() of more than 4300 digits (sys.int_info.str_digits_check_threshold).
+const INT_MAX_STR_DIGITS = 4300;
+const NUMBER = /-?(?:0|[1-9][0-9]*)(\.[0-9]+)?([eE][-+]?[0-9]+)?/y;
+const WS = /[ \t\n\r]*/y;
+const fail = (message) => {
+  throw new PythonError('JSONDecodeError', message);
+};
+
+function parse(s) {
+  let i = 0;
+  const skipWs = () => {
+    WS.lastIndex = i;
+    WS.exec(s);
+    i = WS.lastIndex;
+  };
+
+  function string() {
+    // s[i] is the opening quote.
+    let out = '';
+    i += 1;
+    for (;;) {
+      if (i >= s.length) fail('Unterminated string');
+      const ch = s[i];
+      if (ch === '"') {
+        i += 1;
+        return out;
+      }
+      if (ch.charCodeAt(0) <= 0x1f) fail('Invalid control character');
+      if (ch !== '\\') {
+        out += ch;
+        i += 1;
+        continue;
+      }
+      const esc = s[i + 1];
+      const simple = { '"': '"', '\\': '\\', '/': '/', b: '\b', f: '\f', n: '\n', r: '\r', t: '\t' }[esc];
+      if (simple !== undefined) {
+        out += simple;
+        i += 2;
+        continue;
+      }
+      if (esc !== 'u') fail('Invalid \\escape');
+      const unit = (at) => {
+        const hex = s.slice(at, at + 4);
+        if (!/^[0-9a-fA-F]{4}$/.test(hex)) fail('Invalid \\uXXXX escape');
+        return parseInt(hex, 16);
+      };
+      let code = unit(i + 2);
+      i += 6;
+      // A high surrogate followed by an escaped low surrogate is one character;
+      // anything else stays a lone surrogate, as in Python.
+      if (code >= 0xd800 && code <= 0xdbff && s[i] === '\\' && s[i + 1] === 'u') {
+        const low = unit(i + 2);
+        if (low >= 0xdc00 && low <= 0xdfff) {
+          code = 0x10000 + ((code - 0xd800) << 10) + (low - 0xdc00);
+          i += 6;
+        }
+      }
+      out += code > 0xffff ? String.fromCodePoint(code) : String.fromCharCode(code);
+    }
+  }
+
+  function number() {
+    NUMBER.lastIndex = i;
+    const m = NUMBER.exec(s);
+    if (!m) fail('Expecting value');
+    i = NUMBER.lastIndex;
+    if (m[1] !== undefined || m[2] !== undefined) return Number(m[0]); // float(); '1e400' → inf like Python
+    const digits = m[0].replace('-', '').length;
+    if (digits > INT_MAX_STR_DIGITS)
+      throw new PythonError('ValueError', 'Exceeds the limit for integer string conversion');
+    return BigInt(m[0]);
+  }
+
+}
