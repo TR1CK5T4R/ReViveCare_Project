@@ -42,3 +42,51 @@ export async function findPatientById(id, client) {
   );
   return rows[0] ?? null;
 }
+
+/**
+ * Lock and return the patient with exactly this email (case-sensitive), for
+ * Django's update_or_create, which runs select_for_update().get(email=...).
+ *
+ * @param {string} email
+ * @param {import('pg').PoolClient} client inside a transaction
+ * @returns {Promise<{ patientId: number, userId: number } | null>}
+ */
+export async function findPatientForUpdateByEmail(email, client) {
+  const { rows } = await query(
+    `SELECT p.id AS "patientId", u.id AS "userId"
+       FROM users u
+       JOIN patients p ON p.user_id = u.id
+      WHERE u.email = $1 AND u.role = 'patient'
+        FOR UPDATE`,
+    [email],
+    client,
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Create a patient the way Django's Patient.objects.create(email, name, info)
+ * did: every optional column NULL, is_active true, both timestamps clock_timestamp().
+ * Two rows here (users + patients); call inside a transaction.
+ *
+ * @param {{ email: string, name: string, info: string }} patient
+ * @param {import('pg').PoolClient} client
+ * @returns {Promise<number>} the new patients.id
+ */
+export async function insertPatient({ email, name, info }, client) {
+  const { rows: users } = await query(
+    // clock_timestamp(), not the column default now() (= transaction start): Django
+    // calls timezone.now() for each field when it saves, after taking the row lock.
+    `INSERT INTO users (role, name, email, created_at, updated_at)
+     VALUES ('patient', $1, $2, clock_timestamp(), clock_timestamp())
+     RETURNING id`,
+    [name, email],
+    client,
+  );
+  const { rows } = await query(
+    'INSERT INTO patients (user_id, info) VALUES ($1, $2) RETURNING id',
+    [users[0].id, info],
+    client,
+  );
+  return rows[0].id;
+}
