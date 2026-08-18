@@ -38,3 +38,25 @@ export async function withTransaction(fn, pool = getPool()) {
     client.release(brokenConnection);
   }
 }
+
+/**
+ * Run `fn()` inside a savepoint of the current transaction (Django's nested
+ * `transaction.atomic()`): on error, only the savepoint's work is rolled back,
+ * so the transaction can carry on, and the error is re-thrown.
+ *
+ * @template T
+ * @param {import('pg').PoolClient} client a client inside withTransaction
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+export async function withSavepoint(client, fn) {
+  await client.query('SAVEPOINT nested_atomic');
+  try {
+    const result = await fn();
+    await client.query('RELEASE SAVEPOINT nested_atomic');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK TO SAVEPOINT nested_atomic');
+    throw err;
+  }
+}
