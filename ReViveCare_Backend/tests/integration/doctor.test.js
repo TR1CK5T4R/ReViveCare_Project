@@ -84,4 +84,48 @@ describe('POST /doctor_info (E06): create', () => {
     expect(await patients()).toEqual([expect.objectContaining(stored)]);
   });
 
+  it('accepts NaN / Infinity like Python json.loads', async () => {
+    const res = await post('{"email": "e@x.test", "name": NaN, "info": -Infinity}');
+    expect(res.status).toBe(200);
+    expect(await patients()).toEqual([expect.objectContaining({ name: 'nan', info: '-inf' })]);
+  });
+
+  it.each(['text/plain', 'application/x-www-form-urlencoded', 'application/json; charset=utf-8', ''])(
+    'parses the body as JSON whatever the Content-Type (%j)',
+    async (type) => {
+      const res = await request(app)
+        .post('/doctor_info')
+        .set('Content-Type', type)
+        // A string goes out as-is; supertest would re-serialize a Buffer or object for these types.
+        .send('{"email": "e@x.test", "name": "n", "info": "i"}');
+      expect(res.body).toEqual({ success: true, created: true });
+    },
+  );
+
+  it('ignores extra keys', async () => {
+    const res = await post(JSON.stringify({ email: 'e@x.test', name: 'n', info: 'i', password: 'x', age: 40 }));
+    expect(res.status).toBe(200);
+    expect((await patients())[0]).toMatchObject({ password: null, age: null });
+  });
+});
+
+describe('POST /doctor_info (E06): update', () => {
+  it('updates name and info of the patient with that exact email: {"created": false}', async () => {
+    const existing = await createPatient({ name: 'Old', email: 'asha@example.test', info: 'old info' });
+    const before = (await patients())[0];
+    const res = await post(JSON.stringify({ email: 'asha@example.test', name: 'New', info: 'new info' }));
+    expect(res.text).toBe('{"success":true,"created":false}');
+    const [after] = await patients();
+    expect(after).toMatchObject({ id: existing.id, name: 'New', email: 'asha@example.test', info: 'new info' });
+    expect(after.created_at).toEqual(before.created_at);
+    expect(Date.parse(after.updated_at)).toBeGreaterThan(Date.parse(before.updated_at)); // timestamptz stays a string
+  });
+
+  it('matches the email case-sensitively: a different case creates a second patient', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const res = await post(JSON.stringify({ email: 'Asha@example.test', name: 'n', info: 'i' }));
+    expect(res.body.created).toBe(true);
+    expect(await patients()).toHaveLength(2);
+  });
+
 });

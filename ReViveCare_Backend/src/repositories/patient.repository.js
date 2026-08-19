@@ -90,3 +90,16 @@ export async function insertPatient({ email, name, info }, client) {
   );
   return rows[0].id;
 }
+
+/**
+ * Django's update branch: save(update_fields=[name, info, updated_at, created_at]).
+ * created_at is rewritten with its own value, so it isn't touched here;
+ * updated_at is auto_now.
+ *
+ * @param {{ userId: number, patientId: number, name: string, info: string }} patient
+ * @param {import('pg').PoolClient} client
+ */
+export async function updatePatientNameAndInfo({ userId, patientId, name, info }, client) {
+  await query('UPDATE users SET name = $1, updated_at = clock_timestamp() WHERE id = $2', [name, userId], client);
+  await query('UPDATE patients SET info = $1 WHERE id = $2', [info, patientId], client);
+}
