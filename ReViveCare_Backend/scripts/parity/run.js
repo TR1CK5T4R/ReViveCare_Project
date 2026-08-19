@@ -226,3 +226,83 @@ async function nodePatients() {
   );
   return rows;
 }
+
+// ─── Comparison ──────────────────────────────────────────────────────────────
+
+const LIST_HEADERS = new Set(['access-control-allow-methods', 'access-control-allow-headers', 'vary']);
+
+function normalizeHeader(name, value) {
+  if (value === undefined) return undefined;
+  if (LIST_HEADERS.has(name)) {
+    return value
+      .split(',')
+      .map((v) => v.trim().toLowerCase())
+      .sort()
+      .join(',');
+  }
+  return value;
+}
+
+function deleteJsonPath(obj, jsonPath) {
+  // Supports $.a.b and $.items[*].x
+  const parts = jsonPath.replace(/^\$\.?/, '').split('.');
+  const walk = (node, i) => {
+    if (node === null || typeof node !== 'object') return;
+    const part = parts[i];
+    const star = part.endsWith('[*]');
+    const key = star ? part.slice(0, -3) : part;
+    if (i === parts.length - 1 && !star) return void delete node[key];
+    const next = node[key];
+    if (star && Array.isArray(next)) next.forEach((item) => walk(item, i + 1));
+    else walk(next, i + 1);
+  };
+  walk(obj, 0);
+}
+
+function stable(value) {
+  return JSON.stringify(value, (k, v) =>
+    v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort()) : v,
+  );
+}
+
+function compareStep(step, scenario, d, n) {
+  const diffs = [];
+  const add = (kind, django, node) => diffs.push({ kind, django, node });
+
+  if (d.status !== n.status) add('status', d.status, n.status);
+
+  for (const name of ['location', 'content-type', ...(step.compare_headers ?? [])]) {
+    const dv = normalizeHeader(name, d.headers[name]);
+    const nv = normalizeHeader(name, n.headers[name]);
+    // HTML error pages: only the status is compared, so skip their content type.
+    if (name === 'content-type' && d.status >= 400 && (dv ?? '').startsWith('text/html')) continue;
+    if (dv !== nv) add(`header:${name}`, dv, nv);
+  }
+
+  const cookieMap = (res) =>
+    new Map(
+      (res.headers['set-cookie'] ?? [])
+        .map((h) => parseSetCookie(h, res.headers.date))
+        .filter((c) => !IGNORED_COOKIES.has(c.name))
+        .map((c) => [c.name, c]),
+    );
+  const dc = cookieMap(d);
+  const nc = cookieMap(n);
+  for (const name of new Set([...dc.keys(), ...nc.keys()])) {
+    const describe = (c) =>
+      c
+        ? {
+            httponly: c.attrs.httponly === true,
+            secure: c.attrs.secure === true,
+            samesite: String(c.attrs.samesite ?? '').toLowerCase(),
+            path: c.attrs.path ?? null,
+            // Values are random on both sides; lifetimes compared to the minute.
+            lifetime: c.lifetime === null ? 'session' : c.lifetime <= 0 ? 'deleted' : Math.round(c.lifetime / 60) * 60,
+          }
+        : 'not set';
+    const a = describe(dc.get(name));
+    const b = describe(nc.get(name));
+    if (stable(a) !== stable(b)) add(`cookie:${name}`, a, b);
+  }
+
+}
