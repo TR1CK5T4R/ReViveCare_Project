@@ -52,4 +52,36 @@ describe('POST /doctor_info (E06): create', () => {
     expect(row.created_at).toBeTruthy();
   });
 
+  it('stores the email exactly as sent: no trimming, no lower-casing', async () => {
+    await post(JSON.stringify({ name: 'N', email: ' Mixed@Example.TEST ', info: 'I' }));
+    expect((await patients())[0].email).toBe(' Mixed@Example.TEST ');
+    // ...so that patient can never log in (login strips and lower-cases).
+    const login = await request(app).post('/login/').type('form').send({ email: ' Mixed@Example.TEST ' });
+    expect(login.headers.location).toBe('/');
+  });
+
+  it('the new patient can log in and sees the data on the dashboard', async () => {
+    await post(JSON.stringify({ name: 'Ravi', email: 'ravi@example.test', info: 'Hip replacement.' }));
+    const agent = request.agent(app);
+    await agent.post('/login/').type('form').send({ email: 'ravi@example.test' });
+    const res = await agent.get('/patient/dashboard/').set('Accept', 'application/json');
+    expect(res.body.patient).toMatchObject({ name: 'Ravi', email: 'ravi@example.test', info: 'Hip replacement.' });
+  });
+
+  it.each([
+    [
+      { name: 5, email: 5.0, info: true },
+      { name: '5', email: '5.0', info: 'True' },
+    ],
+    [
+      { name: [1, 'a'], email: 'e@x.test', info: { a: 1 } },
+      { name: "[1, 'a']", email: 'e@x.test', info: "{'a': 1}" },
+    ],
+  ])('turns non-strings into Python str(): %j', async (body, stored) => {
+    // JSON.stringify writes 5.0 as 5, so send the literal text Python would see.
+    const text = JSON.stringify(body).replace('"email":5', '"email":5.0');
+    expect((await post(text)).body).toEqual({ success: true, created: true });
+    expect(await patients()).toEqual([expect.objectContaining(stored)]);
+  });
+
 });
