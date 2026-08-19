@@ -67,4 +67,20 @@ export function createApp({ config, logger }) {
     });
   }
 
+  // 4. Security headers on every response, including errors. Django parity:
+  //    X-Frame-Options DENY, Referrer-Policy same-origin, COOP same-origin.
+  //    CORP off: Django doesn't send it, and React loads /static videos cross-origin.
+  //    HSTS only in production (Django: only when DEBUG=False).
+  app.use(
+    helmet({
+      frameguard: { action: 'deny' },
+      referrerPolicy: { policy: 'same-origin' },
+      crossOriginOpenerPolicy: { policy: 'same-origin' },
+      crossOriginResourcePolicy: false,
+      strictTransportSecurity: config.isProduction
+        ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+        : false,
+    }),
+  );
+
 }
