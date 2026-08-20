@@ -82,3 +82,84 @@ function floatFromString(text) {
   if (!FLOAT_LITERAL.test(s)) throw new PythonError('ValueError', 'could not convert string to float');
   return Number(s.replaceAll('_', '')); // both correctly rounded; overflow → ±inf like Python
 }
+
+/**
+ * Python `float(value)` for the values pyJsonLoads produces.
+ *
+ * @param {unknown} value float (number), int (BigInt), bool, string, or anything else
+ * @returns {number}
+ * @throws {PythonError} ValueError (bad string), OverflowError (int too large),
+ *   TypeError (None, list, dict)
+ */
+export function pyFloat(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (typeof value === 'bigint') {
+    const n = Number(value); // rounds to nearest, ties to even, as int.__float__
+    if (!Number.isFinite(n)) throw new PythonError('OverflowError', 'int too large to convert to float');
+    return n;
+  }
+  if (typeof value === 'string') return floatFromString(value);
+  throw new PythonError('TypeError', 'float() argument must be a string or a real number');
+}
+
+/**
+ * Python `min(a, b)` / `max(a, b)`: the first argument wins unless the second
+ * compares strictly smaller / larger. Any comparison with NaN is false, so
+ * `min(1.0, nan)` is 1.0 (JS Math.min gives NaN), and `max(0.0, -0.0)` is 0.0.
+ */
+export const pyMin = (a, b) => (b < a ? b : a);
+export const pyMax = (a, b) => (b > a ? b : a);
+
+/**
+ * Python `f"{x:.{digits}f}"`: the exact binary value rounded half-to-even
+ * (JS toFixed rounds exact ties up: 0.125 → '0.13', Python '0.12'), no
+ * exponent form for large values, '-0.00' for negative zero.
+ *
+ * @param {number} x
+ * @param {number} digits
+ * @returns {string}
+ */
+export function pyFormatFixed(x, digits) {
+  if (Number.isNaN(x)) return 'nan';
+  if (!Number.isFinite(x)) return x > 0 ? 'inf' : '-inf';
+  const sign = x < 0 || Object.is(x, -0) ? '-' : '';
+  // x = mantissa · 2^exponent exactly.
+  const view = new DataView(new ArrayBuffer(8));
+  view.setFloat64(0, Math.abs(x));
+  const bits = view.getBigUint64(0);
+  const biased = Number((bits >> 52n) & 0x7ffn);
+  const fraction = bits & ((1n << 52n) - 1n);
+  const mantissa = biased === 0 ? fraction : fraction | (1n << 52n);
+  const exponent = biased === 0 ? -1074 : biased - 1075;
+  // Scaled value mantissa · 10^digits · 2^exponent, rounded half-to-even to an integer.
+  const numerator = mantissa * 10n ** BigInt(digits);
+  let scaled;
+  if (exponent >= 0) {
+    scaled = numerator << BigInt(exponent);
+  } else {
+    const denominator = 1n << BigInt(-exponent);
+    scaled = numerator / denominator;
+    const twice = 2n * (numerator % denominator);
+    if (twice > denominator || (twice === denominator && scaled % 2n === 1n)) scaled += 1n;
+  }
+  const text = scaled.toString().padStart(digits + 1, '0');
+  const whole = text.slice(0, text.length - digits);
+  return digits > 0 ? `${sign}${whole}.${text.slice(-digits)}` : `${sign}${whole}`;
+}
+
+/**
+ * Python `int(text)` for a string (base 10): optional sign, digits with
+ * single underscores between them, Unicode digits and surrounding whitespace
+ * as float() allows. Used for SMTP_PORT (views.py:240).
+ *
+ * @param {string} text
+ * @returns {number}
+ * @throws {PythonError} ValueError
+ */
+export function pyIntFromString(text) {
+  const s = toAsciiNumber(text);
+  if (!/^[+-]?[0-9](?:_?[0-9])*$/.test(s))
+    throw new PythonError('ValueError', 'invalid literal for int() with base 10');
+  return Number(s.replaceAll('_', ''));
+}
