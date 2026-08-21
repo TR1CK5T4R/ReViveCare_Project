@@ -114,3 +114,53 @@ const QUERIES = [
     candidate: true,
   },
 ];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Pick parameter values from the data deterministically (no random ids). */
+async function resolveParams(client) {
+  const one = async (sql) => (await client.query(sql)).rows[0];
+  const patient = await one(
+    `SELECT p.id, u.email FROM patients p JOIN users u ON u.id = p.user_id ORDER BY p.id OFFSET 600 LIMIT 1`,
+  );
+  const active = await one(
+    `SELECT patient_id FROM exercise_sessions ORDER BY id OFFSET (SELECT count(*) / 2 FROM exercise_sessions) LIMIT 1`,
+  );
+  const doctor = await one(
+    `SELECT assigned_doctor_id AS id FROM patients WHERE assigned_doctor_id IS NOT NULL GROUP BY 1 ORDER BY count(*) DESC, 1 LIMIT 1`,
+  );
+  const session = await one(
+    `SELECT sid, sess::text AS sess FROM sessions WHERE expire > now() ORDER BY sid OFFSET 10000 LIMIT 1`,
+  );
+  if (!patient || !active || !doctor || !session)
+    throw new Error('Database has too little data to benchmark: run the seed first');
+  return {
+    patientId: patient.id,
+    patientEmail: patient.email,
+    activePatientId: active.patient_id,
+    doctorId: doctor.id,
+    sid: session.sid,
+    sess: session.sess,
+    nowEpoch: Date.now() / 1000,
+  };
+}
+
+function median(sorted) {
+  const mid = sorted.length / 2;
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[Math.floor(mid)];
+}
+
+function percentile(sorted, p) {
+  return sorted[Math.ceil((p / 100) * sorted.length) - 1];
+}
+
+/** Every scan node in the plan, e.g. "Index Scan on users using users_email_role_key". */
+function collectScans(plan, out = []) {
+  if (plan['Node Type'].includes('Scan')) {
+    const on = plan['Relation Name'] ? ` on ${plan['Relation Name']}` : '';
+    const using = plan['Index Name'] ? ` using ${plan['Index Name']}` : '';
+    out.push(`${plan['Node Type']}${on}${using}`);
+  }
+  for (const child of plan.Plans ?? []) collectScans(child, out);
+  return out;
+}
