@@ -79,3 +79,86 @@ describe('golden: Python float(str)', () => {
     ]);
   });
 });
+
+describe('golden: f"{score:.2f}" and the alert threshold over a float grid', () => {
+  it('matches Python for every value', () => {
+    const mismatches = [];
+    for (const { input, output } of byCase('format and alert')) {
+      const x = floatFromHex(input.float);
+      const actual = {
+        score_2f: pyFormatFixed(x, 2),
+        alert: evaluateParameter('seriousness_score', x).flags.length > 0,
+      };
+      // The alert in the fixture is on the raw value; the engine clamps first, which
+      // can't change "> 0.75" for any value (clamping only moves values to 0.0 or 1.0).
+      if (actual.score_2f !== output.score_2f || (!Number.isNaN(x) && actual.alert !== output.alert)) {
+        mismatches.push([x, output, actual]);
+      }
+    }
+    expect(mismatches).toEqual([]);
+  });
+});
+
+describe('the rules, one by one', () => {
+  const reply = (score) => `{"patient_response": "Keep the leg raised.", "seriousness_score": ${score}}`;
+  const score = (text) => evaluatePatient({ llmReply: text }).seriousnessScore;
+  const alerts = (text) => evaluatePatient({ llmReply: text }).alertDoctor;
+
+  it('alerts the doctor when the score is above 0.75 (R-CHAT-04)', () => {
+    expect(alerts(reply(0.76))).toBe(true);
+    expect(alerts(reply('0.7500000000000001'))).toBe(true);
+  });
+
+  it('does not alert at exactly 0.75: the comparison is strictly greater', () => {
+    expect(alerts(reply(0.75))).toBe(false);
+  });
+
+  it('clamps the score into [0, 1]', () => {
+    expect(score(reply(1.7))).toBe(1);
+    expect(score(reply(-0.2))).toBe(0);
+    expect(Object.is(score(reply('-0.0')), 0)).toBe(true); // max(0.0, -0.0) is 0.0, not -0.0
+  });
+
+  it('treats NaN as 1.0 (Python min(1.0, nan) is 1.0), so a NaN score alerts', () => {
+    expect(score(reply('NaN'))).toBe(1);
+    expect(alerts(reply('"nan"'))).toBe(true);
+  });
+
+  it('reads a score sent as a string with Python float() rules', () => {
+    expect(score(reply('" 0.8 "'))).toBe(0.8);
+    expect(score(reply('"0.7_6"'))).toBe(0.76);
+    expect(score(reply('"\\u0660.\\u0665"'))).toBe(0.5); // Arabic-Indic digits
+  });
+
+  it('scores 0.0 when the key is missing, and keeps the response', () => {
+    expect(evaluatePatient({ llmReply: '{"patient_response": "ok"}' })).toMatchObject({
+      patientResponse: 'ok',
+      seriousnessScore: 0,
+      alertDoctor: false,
+    });
+  });
+
+  it('falls back to the apology and 0.0 when there is no JSON, bad JSON, or a non-numeric string', () => {
+    for (const text of ['no json', '{not json}', reply('"abc"'), reply('"0x1"'), reply('""')]) {
+      expect(evaluatePatient({ llmReply: text })).toMatchObject({
+        patientResponse: riskRules.fallback.patientResponse,
+        seriousnessScore: 0,
+        alertDoctor: false,
+      });
+    }
+  });
+
+  it('takes everything from the first { to the last }, ignoring text around it', () => {
+    expect(score('Sure! ```json\n' + reply(0.9) + '\n``` Hope that helps.')).toBe(0.9);
+  });
+
+  it('lets a null / list / dict score escape as TypeError (Django answered "Server error")', () => {
+    for (const bad of ['null', '[]', '{}']) {
+      expect(() => evaluatePatient({ llmReply: reply(bad) })).toThrow(expect.objectContaining({ pyType: 'TypeError' }));
+    }
+    expect(() => evaluatePatient({ llmReply: reply('1' + '0'.repeat(400)) })).toThrow(
+      expect.objectContaining({ pyType: 'OverflowError' }),
+    );
+  });
+
+});
