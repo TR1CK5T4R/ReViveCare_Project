@@ -58,3 +58,59 @@ let logSlowQuery = (entry) => {
 let logError = (entry) => {
   process.stderr.write(`${JSON.stringify({ level: 'error', ...entry })}\n`);
 };
+
+/**
+ * Create the process-wide pool. Call once at startup (server, script or test
+ * setup). Calling it again without closePool() first is a bug, so it throws.
+ *
+ * @param {object} options
+ * @param {string} options.connectionString postgres://… URL
+ * @param {string} [options.applicationName] shows up in pg_stat_activity
+ * @param {number} [options.max] pool size
+ * @param {number} [options.idleTimeoutMillis]
+ * @param {number} [options.connectionTimeoutMillis]
+ * @param {number} [options.statementTimeoutMillis] server-side cap per statement
+ * @returns {pg.Pool}
+ */
+export function initPool({
+  connectionString,
+  applicationName = 'revivecare-api',
+  max = 10,
+  idleTimeoutMillis = 30_000,
+  connectionTimeoutMillis = 5_000,
+  statementTimeoutMillis = 15_000,
+}) {
+  if (pool) throw new Error('Pool already initialised; call closePool() first');
+  if (!connectionString) throw new Error('No database connection string');
+
+  pool = new Pool({
+    connectionString,
+    max,
+    idleTimeoutMillis,
+    connectionTimeoutMillis,
+    // Server-side cap so one runaway query can't hold a connection forever.
+    statement_timeout: statementTimeoutMillis,
+    application_name: applicationName,
+    // Django runs with TIME_ZONE='UTC' and USE_TZ=True. Pinning the session
+    // zone makes now()::date, AT TIME ZONE and raw timestamptz text match it,
+    // whatever zone the Postgres server or the laptop is in.
+    options: '-c TimeZone=UTC',
+  });
+
+  // An idle client can lose its connection (DB restart, network). Without a
+  // listener, that 'error' event would crash the process.
+  pool.on('error', (err) => logError({ msg: 'idle pg client error', err: err.message }));
+
+  return pool;
+}
+
+/**
+ * The current pool.
+ *
+ * @returns {pg.Pool}
+ * @throws if initPool() hasn't been called
+ */
+export function getPool() {
+  if (!pool) throw new Error('Database pool not initialised: call initPool() first');
+  return pool;
+}

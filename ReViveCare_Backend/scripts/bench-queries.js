@@ -164,3 +164,55 @@ function collectScans(plan, out = []) {
   for (const child of plan.Plans ?? []) collectScans(child, out);
   return out;
 }
+
+// Plans without a scan node (e.g. INSERT ... ON CONFLICT → "ModifyTable") show their top node.
+function describePlan(summary) {
+  return summary.scans.length > 0 ? summary.scans.join('; ') : summary.topNode;
+}
+
+async function runOnce(client, q, params, explain) {
+  const sql = explain ? `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${q.sql}` : q.sql;
+  if (!q.write) return client.query(sql, params);
+  await client.query('BEGIN');
+  try {
+    return await client.query(sql, params);
+  } finally {
+    await client.query('ROLLBACK');
+  }
+}
+
+async function benchQuery(client, q, params) {
+  for (let i = 0; i < WARMUP_RUNS; i += 1) await runOnce(client, q, params, false);
+  const exec = [];
+  const planning = [];
+  let last;
+  for (let i = 0; i < MEASURED_RUNS; i += 1) {
+    const { rows } = await runOnce(client, q, params, true);
+    last = rows[0]['QUERY PLAN'][0];
+    exec.push(last['Execution Time']);
+    planning.push(last['Planning Time']);
+  }
+  exec.sort((a, b) => a - b);
+  planning.sort((a, b) => a - b);
+  const round3 = (x) => Math.round(x * 1000) / 1000;
+  return {
+    summary: {
+      id: q.id,
+      serves: q.serves,
+      candidate: q.candidate === true,
+      medianMs: round3(median(exec)),
+      p95Ms: round3(percentile(exec, 95)),
+      minMs: round3(exec[0]),
+      maxMs: round3(exec[exec.length - 1]),
+      planningMedianMs: round3(median(planning)),
+      topNode: last.Plan['Node Type'],
+      scans: collectScans(last.Plan),
+      rowsReturned: last.Plan['Actual Rows'],
+      sharedHitBlocks: last.Plan['Shared Hit Blocks'],
+      sharedReadBlocks: last.Plan['Shared Read Blocks'],
+    },
+    plan: last,
+  };
+}
+
+// ─── Modes ───────────────────────────────────────────────────────────────────

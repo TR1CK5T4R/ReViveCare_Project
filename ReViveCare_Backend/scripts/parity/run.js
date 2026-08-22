@@ -305,4 +305,72 @@ function compareStep(step, scenario, d, n) {
     if (stable(a) !== stable(b)) add(`cookie:${name}`, a, b);
   }
 
+  d = { ...d, body: bodyOf(d) };
+  n = { ...n, body: bodyOf(n) };
+  const isJson = (r) => (r.headers['content-type'] ?? '').startsWith('application/json');
+  // HEAD responses have a JSON content type but no body: compare those as text.
+  if (isJson(d) && isJson(n) && d.body !== '' && n.body !== '') {
+    const parse = (text) => {
+      const value = JSON.parse(text);
+      for (const p of scenario.ignore ?? []) deleteJsonPath(value, p);
+      return value;
+    };
+    const dj = parse(d.body);
+    const nj = parse(n.body);
+    if (stable(dj) !== stable(nj)) add('body', dj, nj);
+  } else if (!(d.status >= 400 && (d.headers['content-type'] ?? '').startsWith('text/html')) || step.compare_body) {
+    if (d.body !== n.body) add('body', d.body.slice(0, 300), n.body.slice(0, 300));
+  }
+  return diffs;
+}
+
+// ─── Servers ─────────────────────────────────────────────────────────────────
+
+async function waitFor(url, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      await send(url, { method: 'GET', path: '/csrf/' }, new Map());
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+  throw new Error(`Reference Django did not start within ${timeoutMs / 1000}s (see ${REFERENCE_LOG})`);
+}
+
+function startReference() {
+  const log = createWriteStream(REFERENCE_LOG);
+  const child = spawn('bash', [path.join(PROJECT_ROOT, 'parity-tools', 'start-reference.sh'), String(DJANGO_PORT)], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  child.stdout.pipe(log);
+  child.stderr.pipe(log);
+  return child;
+}
+
+async function startNode(groqBaseURL) {
+  const target = resolveDatabase('PARITY_DATABASE_URL');
+  // Fixed parity-only settings that mirror the reference copy's .env, so the
+  // comparison doesn't depend on a developer's own .env.
+  const config = loadConfig({
+    NODE_ENV: 'test',
+    DATABASE_URL: target.url,
+    SESSION_SECRET: 'parity-session-secret-not-a-real-secret',
+    CSRF_SECRET: 'parity-csrf-secret-not-a-real-secret-xx',
+    ALLOWED_HOSTS: 'localhost,127.0.0.1',
+    LOG_LEVEL: 'silent',
+    LOGIN_RATE_LIMIT_MAX: '100000', // scenarios log in many times from one IP
+    CHAT_RATE_LIMIT_MAX: '100000', // Django has no chat limit; scenarios chat a lot
+    // Chat: a local mock instead of Groq. Alert settings stay unset, as in the
+    // reference's .env (empty values there; see alertSettings for the difference).
+    GROQ_API_KEY: PARITY_GROQ_KEY,
+    GROQ_BASE_URL: groqBaseURL,
+  });
+  initPool({ ...config.db, applicationName: 'revivecare-parity' });
+  const app = createApp({ config, logger: createLogger(config.log) });
+  const server = await new Promise((resolve) => {
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
+  });
+  return { app, server, baseUrl: `http://127.0.0.1:${server.address().port}` };
 }

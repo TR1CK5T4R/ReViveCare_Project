@@ -3,3 +3,15 @@
 // code logs patient ids, never names, emails, medical info or chat text.
 
 import pino from 'pino';
+
+export const REDACT_PATHS = [
+  'req.headers.authorization',
+  'req.headers.cookie',
+  'req.headers["x-csrftoken"]',
+  'res.headers["set-cookie"]',
+  'password',
+  '*.password',
+  // Postgres puts row values in error details, e.g. "Key (email, role)=(…) already exists".
+  'err.detail',
+  '*.err.detail',
+];

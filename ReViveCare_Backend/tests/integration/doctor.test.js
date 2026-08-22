@@ -128,4 +128,53 @@ describe('POST /doctor_info (E06): update', () => {
     expect(await patients()).toHaveLength(2);
   });
 
+  it('lets anyone overwrite any patient: no auth, no CSRF, any Origin', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const res = await request(app)
+      .post('/doctor_info')
+      .set('Origin', 'http://evil.example')
+      .send({ email: 'asha@example.test', name: 'Changed', info: 'Changed' });
+    expect(res.status).toBe(200);
+    expect((await patients())[0].name).toBe('Changed');
+  });
+
+  it('two concurrent requests for a new email create exactly one patient', async () => {
+    const body = JSON.stringify({ email: 'race@example.test', name: 'n', info: 'i' });
+    const results = await Promise.all(Array.from({ length: 5 }, () => post(body)));
+    expect(results.map((r) => r.status)).toEqual([200, 200, 200, 200, 200]);
+    expect(results.filter((r) => r.body.created)).toHaveLength(1);
+    expect(await patients()).toHaveLength(1);
+  });
+});
+
+describe('POST /doctor_info (E06): errors are 500s and write nothing', () => {
+  it.each([
+    ['invalid JSON', '{"email": '],
+    ['an empty body', ''],
+    ['a JSON array', '[]'],
+    ['a JSON string', '"x"'],
+    ['a missing name', '{"email": "e@x.test", "info": "i"}'],
+    ['a null email', '{"email": null, "name": "n", "info": "i"}'],
+    ['a null info', '{"email": "e@x.test", "name": "n", "info": null}'],
+    ['single quotes', "{'email': 'e', 'name': 'n', 'info': 'i'}"],
+    ['a trailing comma', '{"email": "e", "name": "n", "info": "i",}'],
+    ['a name over 100 characters (Postgres VARCHAR)', JSON.stringify({ email: 'e', name: 'x'.repeat(101), info: 'i' })],
+    ['an email over 254 characters', JSON.stringify({ email: 'x'.repeat(255), name: 'n', info: 'i' })],
+    ['a NUL character (Postgres text)', '{"email": "e", "name": "a\\u0000b", "info": "i"}'],
+    ['a lone surrogate (psycopg UnicodeEncodeError)', '{"email": "e", "name": "\\ud800", "info": "i"}'],
+    ['an int over 4300 digits', `{"email": ${'1'.repeat(4301)}, "name": "n", "info": "i"}`],
+  ])('%s', async (_label, body) => {
+    const res = await post(body);
+    expect(res.status).toBe(500);
+    expect(res.text).toContain(SERVER_ERROR);
+    expect(await patients()).toEqual([]);
+  });
+
+  it('a failing update leaves the existing patient unchanged', async () => {
+    await createPatient({ name: 'Old', email: 'asha@example.test', info: 'old' });
+    const res = await post(JSON.stringify({ email: 'asha@example.test', name: 'x'.repeat(101), info: 'new' }));
+    expect(res.status).toBe(500);
+    expect((await patients())[0]).toMatchObject({ name: 'Old', info: 'old' });
+  });
+
 });

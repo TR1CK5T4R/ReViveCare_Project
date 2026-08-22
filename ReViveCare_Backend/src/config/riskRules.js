@@ -34,3 +34,33 @@ const parameterSchema = z
       }
     }
   });
+
+const rulesSchema = z
+  .object({
+    responseKey: z.string().min(1),
+    responseWhenMissing: z.string(),
+    fallback: z.object({ patientResponse: z.string().min(1), seriousnessScore: z.number().finite() }),
+    parameters: z.record(z.string(), parameterSchema),
+  })
+  .superRefine((r, ctx) => {
+    const ids = Object.values(r.parameters).flatMap((p) => p.rules.map((rule) => rule.id));
+    if (new Set(ids).size !== ids.length) ctx.addIssue({ code: 'custom', message: 'rule ids must be unique' });
+    // The chat response's seriousness_score comes from this parameter.
+    if (!r.parameters.seriousness_score) ctx.addIssue({ code: 'custom', message: 'seriousness_score is required' });
+  });
+
+/**
+ * Validate a rule set and deep-freeze it.
+ *
+ * @param {unknown} rules
+ * @returns {Readonly<z.infer<typeof rulesSchema>>}
+ * @throws {Error} listing every problem
+ */
+export function validateRiskRules(rules) {
+  const result = rulesSchema.safeParse(rules);
+  if (!result.success) {
+    const problems = result.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`);
+    throw new Error(`Invalid risk rules:\n  ${problems.join('\n  ')}`);
+  }
+  return deepFreeze(structuredClone(result.data));
+}

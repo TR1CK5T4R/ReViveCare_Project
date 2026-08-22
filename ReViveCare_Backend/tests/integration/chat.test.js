@@ -83,4 +83,51 @@ describe('POST /patient/chatbot/send/ (E11): a normal turn', () => {
     expect(groq.options.at(-1)).toMatchObject({ apiKey: 'test-key', timeout: 30_000, maxRetries: 2 });
   });
 
+  it("never uses another patient's data: the session decides whose context and history the model gets (IDOR)", async () => {
+    await createPatient({ name: 'Ravi', email: 'ravi@example.test', info: 'Hip replacement (Ravi only).' });
+    const asha = await loggedIn();
+    const ravi = await loggedIn('ravi@example.test');
+    modelSays(reply('a', 0.1));
+    await send(asha.agent, { message: 'asha secret question' });
+    modelSays(reply('r', 0.1));
+    // Body fields that look like ids are ignored.
+    await send(ravi.agent, { message: 'ravi question', patient_id: patient.id, email: 'asha@example.test' });
+    const { messages } = groq.create.mock.calls[1][0];
+    expect(messages[0].content).toContain('Hip replacement (Ravi only).');
+    expect(messages[0].content).not.toContain('Left knee ACL repair.');
+    expect(messages.map((m) => m.content).join('\n')).not.toContain('asha secret question');
+  });
+
+  it('keeps the chat history in the session, at most the last 20 items', async () => {
+    const { agent, cookie } = await loggedIn();
+    for (let i = 1; i <= 12; i += 1) {
+      modelSays(reply(`answer ${i}`, 0.1));
+      await send(agent, { message: `question ${i}` });
+    }
+    const { chat_history: history } = await sessionData(sidFromCookieValue(cookie));
+    expect(history).toHaveLength(20);
+    expect(history[0]).toEqual({ role: 'user', content: 'question 3' });
+    expect(history.at(-1)).toEqual({ role: 'assistant', content: 'answer 12' });
+  });
+
+  it('writes Hindi as \\u escapes, like JsonResponse', async () => {
+    const { agent } = await loggedIn();
+    modelSays(reply('आराम करें', 0.3));
+    const res = await send(agent, { message: 'दर्द', language: 'hindi' });
+    expect(res.text).toBe(
+      '{"success": true, "response": "\\u0906\\u0930\\u093e\\u092e \\u0915\\u0930\\u0947\\u0902", "seriousness_score": 0.3}',
+    );
+  });
+
+  it('falls back to the apology and 0.0 when the model breaks the format', async () => {
+    const { agent } = await loggedIn();
+    modelSays('Sorry, I cannot answer in JSON today.');
+    const res = await send(agent, { message: 'hello' });
+    expect(res.body).toEqual({
+      success: true,
+      response: "I apologize, but I'm having trouble processing your request. Please try rephrasing your question.",
+      seriousness_score: 0,
+    });
+    expect(res.text).toContain('"seriousness_score": 0.0');
+  });
 });

@@ -83,4 +83,18 @@ export function createApp({ config, logger }) {
     }),
   );
 
+  // 4b. Static demo videos (E22), where Django's WhiteNoiseMiddleware sat: after
+  //     the security headers, before CORS, host checks and sessions, so a video
+  // request never reads the session table.
+  app.use('/static', staticFiles({ root: STATIC_ROOT }));
+
+  // 5. CORS before anything that can reject, so the browser can read error
+  //    responses too; it also answers preflight OPTIONS requests here.
+  //    Django parity: django-cors-headers (see middleware/cors.js).
+  app.use(corsLikeDjango(config.cors.allowedOrigins));
+
+  // 6. Host validation (Django ALLOWED_HOSTS), after CORS as in Django's
+  //    middleware order (CorsMiddleware runs before CommonMiddleware).
+  app.use(allowedHosts(config.allowedHosts));
+
 }

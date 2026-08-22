@@ -57,3 +57,33 @@ function drawOverlay(canvas, video, landmarks, warning) {
         ctx.restore();
     }
 }
+
+/**
+ * @param {boolean} cameraOn true while a set is running
+ * @returns {{ videoRef, canvasRef, status, formWarning: string, cameraError: string | null,
+ *   start: (targetReps: number) => void, reset: () => void }}
+ *   status has Django's 7 status fields (active, complete, counter, target_reps,
+ *   excellent_reps, good_reps, partial_reps).
+ */
+export function usePoseWorkout(cameraOn) {
+    const videoRef = useRef(null);
+    const canvasRef = useRef(null);
+    const stateRef = useRef(createWorkoutState());
+    const [status, setStatus] = useState(() => workoutStatus(createWorkoutState()));
+    const [formWarning, setFormWarning] = useState('');
+    const [cameraError, setCameraError] = useState(null);
+
+    // Re-render only when something the page shows changed, not on every frame.
+    const publish = useCallback((next) => {
+        const previous = stateRef.current;
+        stateRef.current = next;
+        const a = workoutStatus(previous);
+        const b = workoutStatus(next);
+        if (Object.keys(b).some((k) => a[k] !== b[k])) setStatus(b);
+        if (previous.form_warning !== next.form_warning) setFormWarning(next.form_warning);
+    }, []);
+
+    const start = useCallback((targetReps) => publish(startWorkout(stateRef.current, targetReps)), [publish]);
+    const reset = useCallback(() => publish(resetWorkout(stateRef.current)), [publish]);
+
+}

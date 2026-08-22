@@ -36,6 +36,17 @@
     "connect-pg-simple": "10.0.0",
     "cookie-parser": "1.4.7",
     "cors": "2.8.5",
-    "csrf-csrf": "4.0.3"
+    "csrf-csrf": "4.0.3",
+    "dotenv": "16.4.7",
+    "express": "5.3.0",
+    "express-rate-limit": "8.7.1",
+    "express-session": "1.19.0",
+    "groq-sdk": "1.6.0",
+    "helmet": "8.0.0",
+    "nodemailer": "10.1.1",
+    "pg": "8.23.1",
+    "pino": "10.4.0",
+    "pino-http": "11.0.0",
+    "zod": "4.6.7"
   }
 }

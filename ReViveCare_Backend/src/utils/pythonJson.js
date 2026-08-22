@@ -151,4 +151,90 @@ function parse(s) {
     return BigInt(m[0]);
   }
 
+  function value() {
+    const ch = s[i];
+    if (ch === '"') return string();
+    if (ch === '{') return object();
+    if (ch === '[') return array();
+    for (const [word, v] of [
+      ['null', null],
+      ['true', true],
+      ['false', false],
+      ['NaN', NaN],
+      ['Infinity', Infinity],
+      ['-Infinity', -Infinity],
+    ]) {
+      if (s.startsWith(word, i)) {
+        i += word.length;
+        return v;
+      }
+    }
+    if (ch === '-' || (ch >= '0' && ch <= '9')) return number();
+    return fail('Expecting value');
+  }
+
+  function object() {
+    const map = new Map();
+    i += 1;
+    skipWs();
+    if (s[i] === '}') {
+      i += 1;
+      return map;
+    }
+    for (;;) {
+      if (s[i] !== '"') fail('Expecting property name enclosed in double quotes');
+      const key = string();
+      skipWs();
+      if (s[i] !== ':') fail("Expecting ':' delimiter");
+      i += 1;
+      skipWs();
+      map.set(key, value());
+      skipWs();
+      if (s[i] === '}') {
+        i += 1;
+        return map;
+      }
+      if (s[i] !== ',') fail("Expecting ',' delimiter");
+      i += 1;
+      skipWs();
+    }
+  }
+
+  function array() {
+    const list = [];
+    i += 1;
+    skipWs();
+    if (s[i] === ']') {
+      i += 1;
+      return list;
+    }
+    for (;;) {
+      list.push(value());
+      skipWs();
+      if (s[i] === ']') {
+        i += 1;
+        return list;
+      }
+      if (s[i] !== ',') fail("Expecting ',' delimiter");
+      i += 1;
+      skipWs();
+    }
+  }
+
+  skipWs();
+  const result = value();
+  skipWs();
+  if (i !== s.length) fail('Extra data');
+  return result;
+}
+
+/**
+ * Python `json.loads(raw_bytes)`.
+ *
+ * @param {Buffer | Uint8Array} bytes the raw request body
+ * @returns {unknown} see the value mapping at the top of the file
+ * @throws {PythonError} JSONDecodeError, UnicodeDecodeError or ValueError
+ */
+export function pyJsonLoads(bytes) {
+  return parse(decode(bytes));
 }

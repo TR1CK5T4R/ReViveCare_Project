@@ -79,5 +79,32 @@ describe('GET /static/Patients/videos/<file> (E22)', () => {
   describe('Range and preconditions, as WhiteNoise handles them', () => {
     const size = () => statSync(path.join(VIDEOS, 'bc.mp4')).size;
 
+    it.each(['bytes=99999999-', 'bytes=500-100', 'bytes=-99999999'])(
+      'unsatisfiable %s → 416 with only Content-Range, no body (not a 500)',
+      async (range) => {
+        const res = await request(app).get('/static/Patients/videos/bc.mp4').set('Range', range);
+        expect(res.status).toBe(416);
+        expect(res.headers['content-range']).toBe(`bytes */${size()}`);
+        for (const name of ['content-type', 'etag', 'last-modified', 'cache-control', 'accept-ranges']) {
+          expect(res.headers[name]).toBeUndefined();
+        }
+        expect(res.text).toBe('');
+      },
+    );
+
+    it('a one-byte range is served (206); WhiteNoise answered 416 there', async () => {
+      const res = await request(app).get('/static/Patients/videos/bc.mp4').set('Range', 'bytes=0-0');
+      expect(res.status).toBe(206);
+      expect(res.headers['content-range']).toBe(`bytes 0-0/${size()}`);
+    });
+
+    it.each([
+      ['If-Match', '"no-such-etag"'],
+      ['If-Unmodified-Since', 'Thu, 01 Jan 1970 00:00:00 GMT'],
+    ])('ignores %s (WhiteNoise never reads it): 200', async (name, value) => {
+      const res = await request(app).head('/static/Patients/videos/bc.mp4').set(name, value);
+      expect(res.status).toBe(200);
+    });
+
   });
 });
