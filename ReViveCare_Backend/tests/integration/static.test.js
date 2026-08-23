@@ -106,5 +106,24 @@ describe('GET /static/Patients/videos/<file> (E22)', () => {
       expect(res.status).toBe(200);
     });
 
+    it('ignores a stale If-Range and still answers the Range with 206', async () => {
+      const res = await request(app)
+        .get('/static/Patients/videos/bc.mp4')
+        .set('Range', 'bytes=0-9')
+        .set('If-Range', '"stale-etag"');
+      expect(res.status).toBe(206);
+    });
   });
+
+  it.each(['post', 'put', 'patch', 'delete', 'options'])(
+    '%s on a static file → 405 Allow: GET, HEAD (WhiteNoise)',
+    async (method) => {
+      const res = await request(app)[method]('/static/Patients/videos/bc.mp4');
+      expect(res.status).toBe(405);
+      expect(res.headers.allow).toBe('GET, HEAD');
+      expect(res.headers['content-type']).toBeUndefined();
+      expect(res.text).toBe('');
+    },
+  );
+
 });
