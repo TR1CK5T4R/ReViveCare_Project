@@ -37,4 +37,28 @@ describe('loadConfig', () => {
     expect(issuesFor({ ...minimal, DATABASE_URL: 'mysql://x/y' })[0]).toMatch(/^DATABASE_URL:/);
   });
 
+  it('applies Django defaults for hosts, CORS and CSRF origins', () => {
+    const config = loadConfig(minimal);
+    expect(config.allowedHosts).toEqual(['localhost', '127.0.0.1']);
+    expect(config.cors.allowedOrigins).toEqual([
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://127.0.0.1:5173',
+    ]);
+    expect(config.csrf.trustedOrigins).toEqual(config.cors.allowedOrigins);
+    expect(config.session).toMatchObject({ cookieName: 'sessionid', maxAgeSeconds: 86400, cookieSecure: false });
+    expect(config.csrf).toMatchObject({
+      cookieName: 'csrftoken',
+      headerName: 'x-csrftoken',
+      cookieMaxAgeSeconds: 31449600,
+    });
+  });
+
+  it('splits lists like Django (no trimming) and rejects malformed origins', () => {
+    expect(loadConfig({ ...minimal, ALLOWED_HOSTS: 'a.test,b.test' }).allowedHosts).toEqual(['a.test', 'b.test']);
+    expect(issuesFor({ ...minimal, CORS_ALLOWED_ORIGINS: 'http://ok.test, http://space.test' })).toEqual([
+      'CORS_ALLOWED_ORIGINS: " http://space.test" is not an origin like http://host:port',
+    ]);
+  });
+
 });
