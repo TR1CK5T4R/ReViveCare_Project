@@ -88,3 +88,61 @@ export class ConfigError extends Error {
     this.issues = issues;
   }
 }
+
+/**
+ * The alert settings exactly as Django sees them. Patients/views.py:43-44 runs
+ * os.environ.setdefault for SMTP_SERVER ("smtp.gmail.com") and SMTP_PORT
+ * ("587"), so only a *missing* variable gets the default; an empty one stays
+ * empty (an empty SMTP_PORT makes int('') fail, which skips the whole alert).
+ * Django's sender/password/doctor defaults are deliberately not copied:
+ * missing means "email not configured". Raw strings, no trimming, like os.getenv.
+ *
+ * @param {Record<string, string | undefined>} source
+ */
+export function alertSettings(source) {
+  const raw = (name, fallback) => (source[name] === undefined ? fallback : source[name]);
+  return {
+    smtpServer: raw('SMTP_SERVER', 'smtp.gmail.com'),
+    smtpPort: raw('SMTP_PORT', '587'),
+    emailSender: raw('EMAIL_SENDER'),
+    emailPassword: raw('EMAIL_PASSWORD'),
+    doctorEmail: raw('DOCTOR_EMAIL'),
+    twilioAccountSid: raw('TWILIO_ACCOUNT_SID'),
+    twilioAuthToken: raw('TWILIO_AUTH_TOKEN'),
+    twilioPhoneNumber: raw('TWILIO_PHONE_NUMBER'),
+    toNumber: raw('TO_NUMBER'),
+  };
+}
+
+/**
+ * Validate environment variables and build the app config.
+ *
+ * @param {Record<string, string | undefined>} source usually process.env
+ * @returns {Readonly<object>} deep-frozen config
+ * @throws {ConfigError} listing every missing or invalid variable by name
+ */
+export function loadConfig(source) {
+  // Treat empty strings as "not set", so `FOO=` in .env falls back to the default.
+  const cleaned = Object.fromEntries(Object.entries(source).filter(([, value]) => value !== ''));
+  const parsed = schema.safeParse(cleaned);
+  const issues = parsed.success
+    ? []
+    : parsed.error.issues.map((i) => {
+        const name = i.path.join('.');
+        return `${name}: ${cleaned[name] === undefined ? 'is required but not set' : i.message}`;
+      });
+
+  if (parsed.success) {
+    const e = parsed.data;
+    for (const [name, list] of [
+      ['CORS_ALLOWED_ORIGINS', e.CORS_ALLOWED_ORIGINS],
+      ['CSRF_TRUSTED_ORIGINS', e.CSRF_TRUSTED_ORIGINS],
+    ]) {
+      for (const origin of list) {
+        if (!ORIGIN.test(origin)) issues.push(`${name}: "${origin}" is not an origin like http://host:port`);
+      }
+    }
+  }
+  if (issues.length > 0) throw new ConfigError(issues);
+
+}
