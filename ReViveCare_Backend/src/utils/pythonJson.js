@@ -238,3 +238,80 @@ function parse(s) {
 export function pyJsonLoads(bytes) {
   return parse(decode(bytes));
 }
+
+/**
+ * Python `json.loads(text)` for a str (not bytes): no encoding detection, and
+ * a leading U+FEFF is an error ("Unexpected UTF-8 BOM").
+ *
+ * @param {string} text
+ * @returns {unknown}
+ * @throws {PythonError} JSONDecodeError or ValueError
+ */
+export function pyJsonLoadsText(text) {
+  if (text.startsWith('\ufeff')) fail('Unexpected UTF-8 BOM (decode using utf-8-sig)');
+  return parse(text);
+}
+
+// ─── str() / repr() ───
+
+/**
+ * Python `repr(float)`: the shortest digits that round-trip (as JS), written
+ * with Python's layout: exponent form when the decimal exponent is < -4 or
+ * >= 16, two-digit exponents, and '.0' on integral values.
+ *
+ * @param {number} x
+ * @returns {string}
+ */
+export function pyFloatRepr(x) {
+  if (Number.isNaN(x)) return 'nan';
+  if (x === Infinity) return 'inf';
+  if (x === -Infinity) return '-inf';
+  if (x === 0) return Object.is(x, -0) ? '-0.0' : '0.0';
+  const sign = x < 0 ? '-' : '';
+  const [mantissa, exp] = Math.abs(x).toExponential().split('e');
+  const digits = mantissa.replace('.', '');
+  const point = Number(exp) + 1; // position of the decimal point within `digits`
+  if (point > 16 || point < -3) {
+    const fraction = digits.length > 1 ? `.${digits.slice(1)}` : '';
+    const e = Number(exp);
+    return `${sign}${digits[0]}${fraction}e${e < 0 ? '-' : '+'}${String(Math.abs(e)).padStart(2, '0')}`;
+  }
+  if (point <= 0) return `${sign}0.${'0'.repeat(-point)}${digits}`;
+  if (point >= digits.length) return `${sign}${digits}${'0'.repeat(point - digits.length)}.0`;
+  return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`;
+}
+
+// str.isprintable() is false for categories Cc, Cf, Cs, Co, Cn, Zl, Zp and Zs
+// (except the ASCII space). Node's Unicode tables are newer than Python 3.12's
+// (Unicode 15.0); the golden test pins the code points that differ.
+const NON_PRINTABLE = /[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}\p{Zl}\p{Zp}\p{Zs}]/v;
+
+function escapeChar(cp) {
+  const hex = cp.toString(16);
+  if (cp <= 0xff) return `\\x${hex.padStart(2, '0')}`;
+  if (cp <= 0xffff) return `\\u${hex.padStart(4, '0')}`;
+  return `\\U${hex.padStart(8, '0')}`;
+}
+
+/**
+ * Python `repr(str)`.
+ *
+ * @param {string} s
+ * @returns {string}
+ */
+export function pyStrRepr(s) {
+  const quote = s.includes("'") && !s.includes('"') ? '"' : "'";
+  let out = quote;
+  // Iterating a JS string yields code points, and lone surrogates on their own (category Cs).
+  for (const ch of s) {
+    const cp = ch.codePointAt(0);
+    if (ch === quote || ch === '\\') out += `\\${ch}`;
+    else if (ch === '\t') out += '\\t';
+    else if (ch === '\n') out += '\\n';
+    else if (ch === '\r') out += '\\r';
+    else if (cp < 0x20 || cp === 0x7f) out += escapeChar(cp);
+    else if (cp < 0x7f) out += ch;
+    else out += NON_PRINTABLE.test(ch) ? escapeChar(cp) : ch;
+  }
+  return out + quote;
+}

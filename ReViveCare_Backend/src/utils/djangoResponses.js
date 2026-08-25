@@ -85,3 +85,47 @@ export function sendHtml(res, status, html) {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.end(html);
 }
+
+/**
+ * Like Django's JsonResponse: Content-Type exactly "application/json".
+ * (Python writes `{"a": 1.0}` with spaces and ASCII escapes; JS writes
+ * `{"a":1}`. The parsed values are identical.)
+ *
+ * @param {import('express').Response} res
+ * @param {number} status
+ * @param {unknown} body
+ */
+export function sendJson(res, status, body) {
+  res.status(status);
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify(body));
+}
+
+/**
+ * Like JsonResponse, byte for byte: Python's json.dumps output (spaces after
+ * ':' and ',', \uXXXX escapes, 1.0 written as 1.0). For responses that can
+ * carry model output (E11), where JS formatting would differ.
+ *
+ * @param {import('express').Response} res
+ * @param {number} status
+ * @param {unknown} body
+ */
+export function sendPythonJson(res, status, body) {
+  res.status(status);
+  res.setHeader('Content-Type', 'application/json');
+  res.end(pyJsonDumps(body));
+}
+
+/**
+ * Like django.shortcuts.redirect(): empty body, relative Location.
+ *
+ * @param {import('express').Response} res
+ * @param {string} location
+ * @param {301 | 302} [status] 302 = HttpResponseRedirect, 301 = permanent (APPEND_SLASH)
+ */
+export function sendRedirect(res, location, status = 302) {
+  res.status(status);
+  res.setHeader('Location', location);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.end();
+}
