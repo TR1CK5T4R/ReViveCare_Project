@@ -97,4 +97,28 @@ export function createApp({ config, logger }) {
   //    middleware order (CorsMiddleware runs before CommonMiddleware).
   app.use(allowedHosts(config.allowedHosts));
 
+  // 7. Cookies and session before the routes that read them. Body parsers and
+  //    CSRF checks are per route (routes/index.js), as Django applies them per view.
+  app.use(cookieParser());
+  const session = createSession({ config, pool: getPool(), logger });
+  app.locals.sessionStore = session.store;
+  app.use(session.middleware);
+
+  // 8. Routes at Django's exact paths.
+  const csrf = createCsrf(config.csrf);
+  const { router, routePaths } = createRouter({
+    sessionCookieName: config.session.cookieName,
+    home: createHomeController({ csrf }),
+    auth: createAuthController({ sessionCookieName: config.session.cookieName }),
+    doctor: createDoctorController(),
+    exercise: createExerciseController(),
+    chat: createChatController({ groq: config.groq, alerts: config.alerts }),
+    patient: createPatientController(),
+    health,
+    csrfProtect: csrf.csrfProtect,
+    loginLimiter: loginRateLimit(config.loginRateLimit),
+    chatLimiter: chatRateLimit(config.chatRateLimit),
+  });
+  app.use(router);
+
 }
