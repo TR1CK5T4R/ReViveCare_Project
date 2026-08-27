@@ -131,3 +131,43 @@ describe('POST /patient/chatbot/send/ (E11): a normal turn', () => {
     expect(res.text).toContain('"seriousness_score": 0.0');
   });
 });
+
+describe('POST /patient/chatbot/send/ (E11): doctor alert', () => {
+  it('emails the doctor when the score is above 0.75, before answering', async () => {
+    const { agent } = await loggedIn();
+    modelSays(reply('Please call your doctor now.', 0.9));
+    const res = await send(agent, { message: 'My calf is swollen and hot' });
+    expect(res.body.seriousness_score).toBe(0.9);
+    expect(mail.send).toHaveBeenCalledOnce();
+    const [email] = mail.send.mock.calls[0];
+    expect(email).toMatchObject({ host: 'smtp.example.test', port: 2525, to: 'doctor@example.test' });
+    expect(email.subject).toBe('🚨 URGENT - Patient Alert: Asha Rao (Score: 0.90)');
+    expect(email.text).toContain('LATEST PATIENT QUERY:\nMy calf is swollen and hot\n');
+  });
+
+  it('does not alert at exactly 0.75', async () => {
+    const { agent } = await loggedIn();
+    modelSays(reply('Contact your doctor soon.', 0.75));
+    await send(agent, { message: 'hmm' });
+    expect(mail.send).not.toHaveBeenCalled();
+  });
+
+  it('still answers normally when the email fails (the failure is only logged)', async () => {
+    const { agent } = await loggedIn();
+    mail.send.mockRejectedValueOnce(new Error('SMTP down'));
+    modelSays(reply('Please call your doctor now.', 1));
+    const res = await send(agent, { message: 'chest pain' });
+    expect(res.body).toMatchObject({ success: true, seriousness_score: 1 });
+  });
+});
+
+describe('POST /patient/chatbot/send/ (E11): Django error answers (all HTTP 200)', () => {
+  it('not logged in → Not authenticated (and the model is never called)', async () => {
+    const res = await request(app).post('/patient/chatbot/send/').send({ message: 'hi' });
+    expect(res.status).toBe(200);
+    expect(res.text).toBe('{"success": false, "error": "Not authenticated"}');
+    expect(res.headers.vary).toMatch(/Cookie/);
+    expect(groq.create).not.toHaveBeenCalled();
+  });
+
+});
