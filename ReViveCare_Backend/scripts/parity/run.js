@@ -374,3 +374,83 @@ async function startNode(groqBaseURL) {
   });
   return { app, server, baseUrl: `http://127.0.0.1:${server.address().port}` };
 }
+
+// ─── Scenarios ───────────────────────────────────────────────────────────────
+
+async function loadScenarios(only) {
+  const dir = path.join(PARITY_DIR, 'scenarios');
+  const files = (await readdir(dir)).filter((f) => f.endsWith('.json') && (!only || f === `${only}.json`)).sort();
+  const actors = JSON.parse(await readFile(path.join(PARITY_DIR, 'fixtures', 'actors.json'), 'utf8'));
+  const scenarios = [];
+  for (const file of files) {
+    for (const s of JSON.parse(await readFile(path.join(dir, file), 'utf8'))) {
+      const steps = [...s.steps];
+      if (s.actor) {
+        if (!actors[s.actor]) throw new Error(`${file}: unknown actor "${s.actor}"`);
+        steps.unshift({
+          label: `log in as ${s.actor}`,
+          method: 'POST',
+          path: '/login/',
+          form: { email: actors[s.actor].email },
+        });
+      }
+      scenarios.push({ ...s, file, steps });
+    }
+  }
+  return scenarios;
+}
+
+async function runScenario(scenario, djangoUrl, nodeUrl, mocks) {
+  const jars = { django: new Map(), node: new Map() };
+  const results = [];
+  for (const [index, step] of scenario.steps.entries()) {
+    if (step.action) {
+      if (!ACTIONS[step.action]) throw new Error(`${scenario.file}: unknown action "${step.action}"`);
+      await ACTIONS[step.action](step);
+      results.push({ index, label: step.label ?? `${step.action} ${step.email ?? ''}`.trim(), diffs: [] });
+      continue;
+    }
+    const llmBefore = { django: mocks.django.requests.length, node: mocks.node.requests.length };
+    const d = await send(djangoUrl, step, jars.django);
+    const n = await send(nodeUrl, step, jars.node);
+    let diffs = compareStep(step, scenario, d, n);
+    // What each backend sent to the model during this step (every attempt, so retries count).
+    if (step.compare_llm_request) {
+      const sent = (side) => mocks[side].requests.slice(llmBefore[side]);
+      if (stable(sent('django')) !== stable(sent('node'))) {
+        diffs.push({ kind: 'llm_request', django: sent('django'), node: sent('node') });
+      }
+    }
+    updateJar(
+      jars.django,
+      (d.headers['set-cookie'] ?? []).map((h) => parseSetCookie(h, d.headers.date)),
+    );
+    updateJar(
+      jars.node,
+      (n.headers['set-cookie'] ?? []).map((h) => parseSetCookie(h, n.headers.date)),
+    );
+    if (step.compare_patients) {
+      const dp = djangoPatients();
+      const np = await nodePatients();
+      if (stable(dp) !== stable(np)) diffs.push({ kind: 'rows', ...rowDiff(dp, np) });
+    }
+    if (step.compare_session) {
+      const ds = djangoSession(jars.django.get('sessionid'));
+      const ns = await nodeSession(jars.node.get('sessionid'));
+      if (stable(ds) !== stable(ns)) diffs.push({ kind: 'session', django: ds, node: ns });
+    }
+    // Differences this scenario documents as approved (with a decision id).
+    diffs = diffs.map((diff) => {
+      const known = (scenario.expected_differences ?? []).find((e) => e.step === index && e.kind === diff.kind);
+      return known ? { ...diff, approved: known.decision, reason: known.reason } : diff;
+    });
+    results.push({ index, label: step.label ?? `${step.method} ${step.path}`, diffs });
+  }
+  const unexpected = results.flatMap((r) => r.diffs).filter((d) => !d.approved);
+  const approved = results.flatMap((r) => r.diffs).filter((d) => d.approved);
+  return {
+    scenario,
+    results,
+    status: unexpected.length ? 'FAIL' : approved.length ? 'PASS (logged differences)' : 'PASS',
+  };
+}
