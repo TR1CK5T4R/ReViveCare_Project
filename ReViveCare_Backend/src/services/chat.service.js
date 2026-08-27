@@ -40,4 +40,51 @@ export async function sendChatMessage(
   const patient = await findPatientById(patientId);
   if (!patient) return { kind: 'patient_not_found' };
 
+  // request.body: a too-large or undecodable body raises here, inside Django's try.
+  if (bodyError) throw bodyError;
+  const data = pyJsonLoads(body ?? Buffer.alloc(0));
+  if (!(data instanceof Map)) throw new PythonError('AttributeError', 'request body is not a JSON object');
+  const userMessage = pyStrip(stringField(data, 'message', ''));
+  const language = pyLower(stringField(data, 'language', 'english'));
+  if (!userMessage) return { kind: 'empty_message' };
+
+  // LangChain message objects only accept text here; anything else (a model
+  // that once answered with a non-string patient_response) fails the request.
+  const messages = [{ role: 'system', content: buildSystemPrompt(patient.info, language) }];
+  for (const item of history) {
+    if (typeof item?.content !== 'string' || item.role === undefined) {
+      throw new PythonError('ValidationError', 'unusable chat_history item');
+    }
+    messages.push({ role: item.role === 'user' ? 'user' : 'assistant', content: item.content });
+  }
+  messages.push({ role: 'user', content: userMessage });
+  // httpx encodes the request as strict UTF-8, so Django failed ("Server error")
+  // on a lone surrogate anywhere in the conversation; JSON.stringify would escape it.
+  if (messages.some((m) => !m.content.isWellFormed())) {
+    throw new PythonError('UnicodeEncodeError', 'surrogates not allowed');
+  }
+
+  const reply = await complete(messages, { ...groq, logger });
+  const { patientResponse, seriousnessScore, alertDoctor } = evaluatePatient({ llmReply: reply });
+
+  // R-CHAT-03: only successful turns are stored; keep the last 20 items.
+  const updated = [
+    ...history,
+    { role: 'user', content: userMessage },
+    { role: 'assistant', content: toPlainJson(patientResponse) },
+  ].slice(-aiConfig.historyWindow);
+
+  // R-CHAT-04/05: synchronous, before the response, like Django. Never throws.
+  if (alertDoctor) {
+    await alert(
+      { patient, userQuery: userMessage, patientResponse, score: seriousnessScore, now: now() },
+      {
+        settings: alerts,
+        logger,
+      },
+    );
+  }
+  // The alert flag is a health signal: not logged here (alert.service logs only that an alert ran).
+  logger.info({ patientId, historyItems: updated.length }, 'chat turn answered');
+  return { kind: 'ok', patientResponse, seriousnessScore, history: updated };
 }

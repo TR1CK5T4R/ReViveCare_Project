@@ -170,4 +170,49 @@ describe('POST /patient/chatbot/send/ (E11): Django error answers (all HTTP 200)
     expect(groq.create).not.toHaveBeenCalled();
   });
 
+  it('deletes a dead session cookie while answering Not authenticated', async () => {
+    const res = await request(app)
+      .post('/patient/chatbot/send/')
+      .set('Cookie', 'sessionid=abcdefghijklmnopqrstuvwxyz012345')
+      .send({ message: 'hi' });
+    expect(setCookies(res).sessionid.value).toBe('');
+  });
+
+  it('patient deleted after login → Patient not found (checked before the body)', async () => {
+    const { agent } = await loggedIn();
+    await query('DELETE FROM users WHERE id = $1', [patient.userId]);
+    const res = await agent.post('/patient/chatbot/send/').set('Content-Type', 'application/json').send('{bad json');
+    expect(res.text).toBe('{"success": false, "error": "Patient not found"}');
+  });
+
+  it.each([
+    ['an empty message', { message: '' }],
+    ['a whitespace-only message', { message: ' 　\n ' }],
+    ['no message key', { language: 'english' }],
+  ])('%s → Empty message', async (_label, body) => {
+    const { agent } = await loggedIn();
+    expect((await send(agent, body)).text).toBe('{"success": false, "error": "Empty message"}');
+    expect(groq.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['invalid JSON', '{"message": '],
+    ['an empty body', ''],
+    ['a JSON array', '["hi"]'],
+    ['a non-string message', '{"message": 5}'],
+    ['a null language', '{"message": "hi", "language": null}'],
+  ])('%s → Server error', async (_label, body) => {
+    const { agent } = await loggedIn();
+    const res = await agent.post('/patient/chatbot/send/').set('Content-Type', 'application/json').send(body);
+    expect(res.text).toBe('{"success": false, "error": "Server error"}');
+  });
+
+  it('a model/API failure → Server error, and the history is not changed', async () => {
+    const { agent, cookie } = await loggedIn();
+    groq.create.mockRejectedValueOnce(Object.assign(new Error('upstream'), { status: 503 }));
+    const res = await send(agent, { message: 'hi' });
+    expect(res.text).toBe('{"success": false, "error": "Server error"}');
+    expect((await sessionData(sidFromCookieValue(cookie))).chat_history).toBeUndefined();
+  });
+
 });
