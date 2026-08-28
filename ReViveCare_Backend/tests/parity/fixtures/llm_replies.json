@@ -1,0 +1,15 @@
+{
+  "default": "{\"patient_response\":\"Default parity reply.\",\"seriousness_score\":0.1}",
+  "calm": "{\"patient_response\":\"Some warmth is normal in week 2. Keep the leg raised.\",\"seriousness_score\":0.2}",
+  "serious": "{\"patient_response\":\"Please contact your doctor or hospital immediately.\",\"seriousness_score\":0.9}",
+  "threshold": "{\"patient_response\": \"Contact your doctor soon.\", \"seriousness_score\": 0.75}",
+  "hindi": "{\"patient_response\":\"घुटने में हल्की गर्माहट सामान्य है।\",\"seriousness_score\":0.3}",
+  "fenced": "Sure! ```json\n{\"patient_response\": \"Rest today.\", \"seriousness_score\": \"0.4\"}\n``` Hope that helps.",
+  "not_json": "I cannot answer in JSON right now.",
+  "nan_score": "{\"patient_response\": \"Monitor it.\", \"seriousness_score\": NaN}",
+  "null_score": "{\"patient_response\": \"x\", \"seriousness_score\": null}",
+  "string_score": "{\"patient_response\": \"x\", \"seriousness_score\": \" 1_0 \"}",
+  "dict_response": "{\"patient_response\": {\"advice\": \"rest\", \"days\": 2}, \"seriousness_score\": 0.5}",
+  "float_response": "{\"patient_response\": 12.50, \"seriousness_score\": 1e400}",
+  "missing_score": "{\"patient_response\": \"No score given.\"}"
+}

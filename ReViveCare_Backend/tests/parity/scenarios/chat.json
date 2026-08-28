@@ -1,0 +1,348 @@
+[
+  {
+    "name": "React chat turn: calm reply (csrf, login, send)",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/csrf/"
+      },
+      {
+        "method": "POST",
+        "path": "/login/",
+        "form": {
+          "email": "asha@parity.revivecare.test"
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Origin": "http://localhost:5173"
+        },
+        "body": "{\"message\": \"My knee feels warm [[reply:calm]]\", \"language\": \"english\"}",
+        "compare_session": true,
+        "compare_llm_request": true,
+        "csrf": true,
+        "compare_headers": [
+          "vary",
+          "access-control-allow-origin"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "three turns build the history the model receives",
+    "actor": "patient_ravi",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"first [[reply:calm]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"second [[reply:default]]\", \"language\": \"hindi\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"third [[reply:serious]]\", \"language\": \"HINDI\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "history keeps only the last 20 items",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"turn 1 [[reply:default]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"turn 2 [[reply:default]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"turn 3 [[reply:default]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"turn 4 [[reply:default]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"turn 5 [[reply:default]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"turn 6 [[reply:default]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"turn 7 [[reply:default]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"turn 8 [[reply:default]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"turn 9 [[reply:default]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"turn 10 [[reply:default]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"turn 11 [[reply:default]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"turn 12 [[reply:default]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "Hindi reply is escaped like JsonResponse",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"घुटने में दर्द [[reply:hindi]]\", \"language\": \"hindi\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "serious reply (> 0.75) alerts (nothing configured, so nothing is sent) and answers",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"calf swollen [[reply:serious]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "exactly 0.75",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"hmm [[reply:threshold]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "model wraps JSON in prose and gives a string score",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"x [[reply:fenced]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "model ignores the JSON format: apology and 0.0",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"x [[reply:not_json]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "NaN score → 1.0",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"x [[reply:nan_score]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "string score with underscores and spaces",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"x [[reply:string_score]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "missing score → 0.0",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"x [[reply:missing_score]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  }
+]
