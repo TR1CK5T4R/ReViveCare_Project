@@ -86,4 +86,62 @@ export function usePoseWorkout(cameraOn) {
     const start = useCallback((targetReps) => publish(startWorkout(stateRef.current, targetReps)), [publish]);
     const reset = useCallback(() => publish(resetWorkout(stateRef.current)), [publish]);
 
+    useEffect(() => {
+        if (!cameraOn) return undefined;
+        let cancelled = false;
+        let stream = null;
+        let landmarker = null;
+        let frameId = null;
+        let lastVideoTime = -1;
+
+        const loop = () => {
+            const video = videoRef.current;
+            if (cancelled || !video || !landmarker) return;
+            if (video.readyState >= 2 && video.currentTime !== lastVideoTime) {
+                lastVideoTime = video.currentTime;
+                const result = landmarker.detectForVideo(video, performance.now());
+                const landmarks = result.landmarks[0];
+                publish(processFrame(stateRef.current, pickLandmarks(landmarks)));
+                if (canvasRef.current) drawOverlay(canvasRef.current, video, landmarks, stateRef.current.form_warning);
+            }
+            frameId = requestAnimationFrame(loop);
+        };
+
+        (async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                if (cancelled) return;
+                videoRef.current.srcObject = stream;
+                await videoRef.current.play();
+                const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+                landmarker = await PoseLandmarker.createFromOptions(vision, {
+                    baseOptions: { modelAssetPath: MODEL_URL, delegate: 'GPU' },
+                    ...LANDMARKER_OPTIONS,
+                });
+                if (cancelled) {
+                    landmarker.close();
+                    return;
+                }
+                setCameraError(null);
+                frameId = requestAnimationFrame(loop);
+            } catch (err) {
+                console.error('Camera or pose model failed:', err);
+                setCameraError(
+                    err?.name === 'NotAllowedError'
+                        ? 'Camera access was denied. Allow the camera in your browser to track your reps.'
+                        : 'Could not start the camera. Make sure a camera is connected and not used by another app.',
+                );
+            }
+        })();
+
+        // Cleanup on stop or unmount: frame loop, camera, model.
+        return () => {
+            cancelled = true;
+            if (frameId !== null) cancelAnimationFrame(frameId);
+            stream?.getTracks().forEach((track) => track.stop());
+            landmarker?.close();
+        };
+    }, [cameraOn, publish]);
+
+    return { videoRef, canvasRef, status, formWarning, cameraError, start, reset };
 }
