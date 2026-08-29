@@ -315,3 +315,89 @@ export function pyStrRepr(s) {
   }
   return out + quote;
 }
+
+/**
+ * Python `repr()` of a value produced by pyJsonLoads.
+ *
+ * @param {unknown} v
+ * @returns {string}
+ */
+export function pyRepr(v) {
+  if (v === null) return 'None';
+  if (v === true) return 'True';
+  if (v === false) return 'False';
+  if (typeof v === 'bigint') return v.toString();
+  if (typeof v === 'number') return pyFloatRepr(v);
+  if (typeof v === 'string') return pyStrRepr(v);
+  if (Array.isArray(v)) return `[${v.map(pyRepr).join(', ')}]`;
+  if (v instanceof Map) return `{${[...v].map(([k, item]) => `${pyRepr(k)}: ${pyRepr(item)}`).join(', ')}}`;
+  throw new TypeError(`pyRepr: unsupported value ${typeof v}`);
+}
+
+/**
+ * Python `str()` of a value produced by pyJsonLoads: strings unchanged,
+ * everything else as repr() (for the JSON types, str() and repr() only
+ * differ on strings).
+ *
+ * @param {unknown} v
+ * @returns {string}
+ */
+export function pyStr(v) {
+  return typeof v === 'string' ? v : pyRepr(v);
+}
+
+// ─── value → JSON text: json.dumps as Django's JsonResponse calls it ───
+
+/** One JSON string with ensure_ascii=True: everything outside ' '..'~' is escaped. */
+function dumpString(s) {
+  const named = { '"': '\\"', '\\': '\\\\', '\n': '\\n', '\r': '\\r', '\t': '\\t', '\b': '\\b', '\f': '\\f' };
+  let out = '"';
+  for (let i = 0; i < s.length; i += 1) {
+    const ch = s[i];
+    const code = s.charCodeAt(i); // UTF-16 units: astral characters become surrogate-pair escapes, as in Python
+    if (named[ch]) out += named[ch];
+    else if (code >= 0x20 && code <= 0x7e) out += ch;
+    else out += `\\u${code.toString(16).padStart(4, '0')}`;
+  }
+  return `${out}"`;
+}
+
+/**
+ * Python `json.dumps(value)` with its defaults (ensure_ascii=True, separators
+ * ', ' and ': ', allow_nan=True → NaN / Infinity / -Infinity tokens), for
+ * pyJsonLoads values plus plain JS objects and arrays. Django's JsonResponse
+ * uses exactly this, so a response built with it is byte-identical.
+ *
+ * @param {unknown} v
+ * @returns {string}
+ */
+export function pyJsonDumps(v) {
+  if (v === null || v === undefined) return 'null';
+  if (v === true) return 'true';
+  if (v === false) return 'false';
+  if (typeof v === 'bigint') return v.toString();
+  if (typeof v === 'number') {
+    if (Number.isNaN(v)) return 'NaN';
+    if (!Number.isFinite(v)) return v > 0 ? 'Infinity' : '-Infinity';
+    return pyFloatRepr(v);
+  }
+  if (typeof v === 'string') return dumpString(v);
+  if (Array.isArray(v)) return `[${v.map(pyJsonDumps).join(', ')}]`;
+  const entries = v instanceof Map ? [...v] : Object.entries(v);
+  return `{${entries.map(([k, item]) => `${dumpString(k)}: ${pyJsonDumps(item)}`).join(', ')}}`;
+}
+
+/**
+ * A pyJsonLoads value as plain JSON-safe JS (for the session store, which
+ * JSON.stringify writes): Map → object, BigInt → number. Lossy only for values
+ * a well-behaved model never sends.
+ *
+ * @param {unknown} v
+ * @returns {unknown}
+ */
+export function toPlainJson(v) {
+  if (typeof v === 'bigint') return Number(v);
+  if (Array.isArray(v)) return v.map(toPlainJson);
+  if (v instanceof Map) return Object.fromEntries([...v].map(([k, item]) => [k, toPlainJson(item)]));
+  return v;
+}
