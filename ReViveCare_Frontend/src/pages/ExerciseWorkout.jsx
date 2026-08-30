@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, RotateCcw, CheckCircle2, Camera, AlertCircle, Dumbbell, Activity, Zap, Target, Settings, Timer, X } from 'lucide-react';
 import { Card, Button, PageLayout } from '../components';
 import djangoAPI from '../services/djangoApi';
+import { usePoseWorkout } from '../hooks/usePoseWorkout';
 
 // Map exercise IDs to their icons
 const exerciseIcons = {
@@ -20,7 +21,8 @@ const exerciseVideos = {
     'arm-raises': 'ar.mp4'
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Same base as services/djangoApi.js: '' in development (the Vite proxy forwards /static/).
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 const VideoModal = ({ isOpen, onClose, videoFile, title }) => {
     if (!isOpen || !videoFile) return null;
@@ -230,10 +232,12 @@ export default function ExerciseWorkout() {
     const [showVideo, setShowVideo] = useState(false);
 
     const [workoutStarted, setWorkoutStarted] = useState(false);
-    const [workoutStatus, setWorkoutStatus] = useState(null);
     const [error, setError] = useState(null);
     const [cameraPermission, setCameraPermission] = useState(null);
-    const videoRef = useRef(null);
+    // Camera, pose model and rep counting run in this tab.
+    const pose = usePoseWorkout(workoutStarted && exercise?.hasCamera);
+    const workoutStatus = pose.status;
+    const currentSetStartedAt = useRef(null); // ISO time the running set started
 
     // Redirect if no exercise data
     useEffect(() => {
@@ -249,68 +253,56 @@ export default function ExerciseWorkout() {
         }
     }, [exercise]);
 
-    const handleStartWorkout = async () => {
-        try {
-            setError(null);
-            console.log(`Starting Set ${currentSet}/${targetSets} with ${targetReps} reps`);
-
-            // Start the workout session on Django backend
-            const response = await djangoAPI.exercise.startWorkout(targetReps, exercise.id);
-            console.log('Workout started:', response);
-
-            setWorkoutStarted(true);
-            setIsResting(false);
-
-            // Start polling for workout status
-            pollWorkoutStatus();
-        } catch (err) {
-            console.error('Failed to start workout:', err);
-            setError('Failed to start workout. Please make sure Django is running.');
-        }
+    // Store the set (E23). Not logged in → 401, and the workout still works locally.
+    const saveSet = (status, endedAt) => {
+        if (!currentSetStartedAt.current) return;
+        const startedAt = currentSetStartedAt.current;
+        currentSetStartedAt.current = null;
+        djangoAPI.exercise
+            .saveSession({
+                exerciseType: exercise.id,
+                targetReps: status.target_reps,
+                excellentReps: status.excellent_reps,
+                goodReps: status.good_reps,
+                partialReps: status.partial_reps,
+                startedAt,
+                endedAt,
+            })
+            .catch((err) => console.error('Failed to save the set:', err));
     };
 
-    const pollWorkoutStatus = async () => {
-        try {
-            const status = await djangoAPI.exercise.getWorkoutStatus();
-            setWorkoutStatus(status);
-
-            // Check if set is complete
-            if (status.completed && !isResting) {
-                if (currentSet < targetSets) {
-                    // Start rest period
-                    setWorkoutStarted(false);
-                    setIsResting(true);
-                } else {
-                    // All sets done
-                    setWorkoutStarted(false);
-                    // Could show a completion modal here
-                }
-            }
-
-            // Continue polling if workout is active and not resting
-            if (workoutStarted && !status.completed && !isResting) {
-                setTimeout(pollWorkoutStatus, 500); // Poll every 500ms
-            }
-        } catch (err) {
-            console.error('Failed to get workout status:', err);
-        }
+    const handleStartWorkout = () => {
+        setError(null);
+        pose.start(targetReps);
+        currentSetStartedAt.current = new Date().toISOString();
+        setWorkoutStarted(true);
+        setIsResting(false);
     };
 
-    const handleResetWorkout = async () => {
-        try {
-            await djangoAPI.exercise.resetWorkout();
-            setWorkoutStatus(null);
-            setWorkoutStarted(false);
-            // Don't reset current set here, user might want to retry current set
-        } catch (err) {
-            console.error('Failed to reset workout:', err);
-        }
+    // A set ends when the logic reaches the target (Django: counter >= target_reps).
+    useEffect(() => {
+        if (!workoutStarted || !workoutStatus.complete) return;
+        saveSet(workoutStatus, new Date().toISOString());
+        setWorkoutStarted(false);
+        if (currentSet < targetSets) setIsResting(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workoutStatus.complete]);
+
+    useEffect(() => {
+        if (pose.cameraError) setError(pose.cameraError);
+    }, [pose.cameraError]);
+
+    const handleResetWorkout = () => {
+        // An abandoned set is stored too, without an end time.
+        saveSet(workoutStatus, null);
+        pose.reset();
+        setWorkoutStarted(false);
+        // Don't reset current set here, user might want to retry current set
     };
 
     const handleNextSet = () => {
         setIsResting(false);
         setCurrentSet(prev => prev + 1);
-        setWorkoutStatus(null);
         handleStartWorkout();
     };
 
@@ -413,20 +405,23 @@ export default function ExerciseWorkout() {
                             {exercise.hasCamera ? (
                                 <div className="relative bg-black rounded-xl overflow-hidden shadow-inner aspect-video group">
                                     {workoutStarted ? (
-                                        <img
-                                            ref={videoRef}
-                                            src={djangoAPI.exercise.getVideoFeedUrl()}
-                                            alt="Exercise video feed"
-                                            className="w-full h-full object-contain"
-                                            onError={(e) => {
-                                                console.error('Video feed error:', e);
-                                                setError('Failed to load video feed. Make sure your camera is connected and Django is running.');
-                                            }}
-                                        />
+                                        // Mirrored like Django's flipped frame; the overlay draws the tracked arms and the form warning.
+                                        <>
+                                            <video
+                                                ref={pose.videoRef}
+                                                playsInline
+                                                muted
+                                                className="w-full h-full object-contain -scale-x-100"
+                                            />
+                                            <canvas
+                                                ref={pose.canvasRef}
+                                                className="absolute inset-0 w-full h-full object-contain -scale-x-100 pointer-events-none"
+                                            />
+                                        </>
                                     ) : (
                                         <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
                                             <div className="text-center text-white">
-                                                {currentSet > 1 && !isResting && workoutStatus?.completed ? (
+                                                {currentSet > 1 && !isResting && workoutStatus.complete ? (
                                                     // Set Complete State
                                                     <div className="animate-in zoom-in duration-300">
                                                         <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30">
@@ -510,8 +505,8 @@ export default function ExerciseWorkout() {
                                 <div className="text-center py-6 bg-slate-50 rounded-xl mb-4 border border-slate-100">
                                     <span className="block text-sm text-slate-500 mb-1">REPS COMPLETED</span>
                                     <div className="flex items-baseline justify-center gap-2">
-                                        <span className={`text-5xl font-bold ${workoutStatus?.completed ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                            {workoutStatus?.reps_count || 0}
+                                        <span className={`text-5xl font-bold ${workoutStatus.complete ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                            {workoutStatus.counter}
                                         </span>
                                         <span className="text-xl text-slate-400 font-medium">/ {targetReps}</span>
                                     </div>
