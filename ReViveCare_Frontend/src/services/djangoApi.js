@@ -1,7 +1,9 @@
 // API Service for connecting React to Django Backend
 // This file contains functions that match your actual Django endpoints
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL !== undefined 
+    ? import.meta.env.VITE_API_BASE_URL 
+    : ''; // Default to empty string for Vite proxy in local dev
 
 // Helper to get CSRF token from cookies
 const getCSRFToken = () => {
@@ -63,7 +65,7 @@ const apiCall = async (endpoint, method = 'GET', data = null) => {
 export const fetchCSRFToken = async () => {
     try {
         // Make a simple GET request to get the CSRF token cookie
-        await fetch(`${API_BASE_URL}/`, {
+        await fetch(`${API_BASE_URL}/csrf/`, {
             credentials: 'include'
         });
     } catch (error) {
@@ -130,9 +132,21 @@ export const patientAPI = {
         return apiCall('/patient/dashboard/');
     },
 
-    // Logout patient
+    // Logout patient. The backend answers 302 → '/', which isn't an API page
+    // (404 on Node), so don't follow it: the redirect itself means the
+    // session was destroyed. Same approach as login above.
     logout: async () => {
-        return apiCall('/patient/logout/', 'POST');
+        const csrfToken = getCSRFToken();
+        const response = await fetch(`${API_BASE_URL}/patient/logout/`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { ...(csrfToken && { 'X-CSRFToken': csrfToken }) },
+            redirect: 'manual',
+        });
+        if (response.type === 'opaqueredirect' || response.status === 302) {
+            return { success: true };
+        }
+        throw new Error(`API Error: ${response.statusText}`);
     },
 };
 
