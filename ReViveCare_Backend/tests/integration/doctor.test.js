@@ -177,4 +177,43 @@ describe('POST /doctor_info (E06): errors are 500s and write nothing', () => {
     expect((await patients())[0]).toMatchObject({ name: 'Old', info: 'old' });
   });
 
+  it('accepts exactly 100 characters of name and 254 of email', async () => {
+    const res = await post(JSON.stringify({ email: 'é'.repeat(254), name: '😀'.repeat(100), info: 'i' }));
+    expect(res.status).toBe(200);
+  });
+
+  it("answers a body over 2.5 MB with Django's 400 page (DATA_UPLOAD_MAX_MEMORY_SIZE)", async () => {
+    const res = await post(JSON.stringify({ email: 'e', name: 'n', info: 'x'.repeat(2_621_440) }));
+    expect(res.status).toBe(400);
+    expect(await patients()).toEqual([]);
+  });
+});
+
+describe('POST /doctor_info (E06): review follow-ups', () => {
+  /** Send raw bytes with node:http, optionally chunked (no Content-Length). */
+  async function rawPost(bytes, { chunked = false, headers = {} } = {}) {
+    const server = app.listen(0);
+    try {
+      return await new Promise((resolve, reject) => {
+        const req = http.request(
+          { port: server.address().port, method: 'POST', path: '/doctor_info', headers },
+          (res) => {
+            res.resume();
+            res.on('end', () => resolve(res.statusCode));
+          },
+        );
+        req.on('error', reject);
+        if (chunked) {
+          req.write(bytes); // write() before end() → Transfer-Encoding: chunked, no Content-Length
+          req.end();
+        } else {
+          req.setHeader('Content-Length', bytes.length);
+          req.end(bytes);
+        }
+      });
+    } finally {
+      await new Promise((r) => server.close(r));
+    }
+  }
+
 });
