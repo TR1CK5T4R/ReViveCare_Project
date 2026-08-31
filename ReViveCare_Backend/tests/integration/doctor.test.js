@@ -216,4 +216,52 @@ describe('POST /doctor_info (E06): review follow-ups', () => {
     }
   }
 
+  it('a chunked body (no Content-Length) reads as empty, like Django: 500, nothing written', async () => {
+    const status = await rawPost(Buffer.from('{"email": "e", "name": "n", "info": "i"}'), { chunked: true });
+    expect(status).toBe(500);
+    expect(await patients()).toEqual([]);
+  });
+
+  it('a body without any Content-Type header is still parsed', async () => {
+    expect(await rawPost(Buffer.from('{"email": "e@x.test", "name": "n", "info": "i"}'))).toBe(200);
+    expect(await patients()).toHaveLength(1);
+  });
+
+  it('a patient may share an email with a doctor (UNIQUE per role): created', async () => {
+    await query(`INSERT INTO users (role, name, email, password) VALUES ('doctor', 'Dr', 'same@x.test', 'x')`);
+    const res = await post(JSON.stringify({ email: 'same@x.test', name: 'n', info: 'i' }));
+    expect(res.body).toEqual({ success: true, created: true });
+  });
+
+  it('concurrent updates of one patient are serialised; one of the writes wins whole', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const bodies = Array.from({ length: 5 }, (_, i) =>
+      JSON.stringify({ email: 'asha@example.test', name: `N${i}`, info: `I${i}` }),
+    );
+    const results = await Promise.all(bodies.map((b) => post(b)));
+    expect(results.every((r) => r.body.created === false)).toBe(true);
+    const [row] = await patients();
+    expect(row.info).toBe(row.name.replace('N', 'I')); // name and info from the same request
+  });
+
+  it('timestamps come from the write itself (clock_timestamp), not the transaction start', async () => {
+    await post(JSON.stringify({ email: 'e@x.test', name: 'n', info: 'i' }));
+    const [row] = await patients();
+    expect(Date.parse(row.updated_at)).toBeGreaterThanOrEqual(Date.parse(row.created_at));
+  });
+});
+
+describe('/doctor_info (E06): logged differences', () => {
+  it('UTF-8 bytes of a lone surrogate inside a list: Node 500; Django decoded them (surrogatepass) and stored the repr', async () => {
+    const body = Buffer.concat([
+      Buffer.from('{"email": "e@x.test", "name": ["'),
+      Buffer.from([0xed, 0xa0, 0x80]),
+      Buffer.from('"], "info": "i"}'),
+    ]);
+    // text/plain + Buffer: supertest sends the bytes untouched.
+    const res = await request(app).post('/doctor_info').set('Content-Type', 'text/plain').send(body);
+    expect(res.status).toBe(500);
+    expect(await patients()).toEqual([]);
+  });
+
 });
