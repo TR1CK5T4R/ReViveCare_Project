@@ -89,4 +89,46 @@ describe('POST /exercise/sessions/ (E23): stores a set', () => {
     expect((await storedSessions())[0]).toMatchObject({ patient_id: patient.id, accuracy_score: 75, notes: null });
   });
 
+  it('accuracy is the old Django page formula: good / all reps x 100, one decimal', () => {
+    expect(accuracyScore(9, 12)).toBe(75);
+    expect(accuracyScore(2, 3)).toBe(66.7);
+    expect(accuracyScore(1, 3)).toBe(33.3);
+    expect(accuracyScore(0, 0)).toBe(0);
+  });
+});
+
+describe('POST /exercise/sessions/ (E23): rejects', () => {
+  it.each([
+    ['an unknown exercise type', { exercise_type: 'squats' }, 'exercise_type'],
+    ['target_reps 0', { target_reps: 0 }, 'target_reps'],
+    ['target_reps 51', { target_reps: 51, good_reps: 0, excellent_reps: 0, partial_reps: 0 }, 'target_reps'],
+    ['a fractional count', { partial_reps: 1.5 }, 'partial_reps'],
+    ['a string count', { good_reps: '9' }, 'good_reps'],
+    ['a negative count', { partial_reps: -1 }, 'partial_reps'],
+    ['more excellent than good reps', { excellent_reps: 10, good_reps: 9 }, 'excellent_reps'],
+    ['more reps than the target', { good_reps: 10, partial_reps: 3 }, 'partial_reps'],
+    ['a start time without a zone', { started_at: '2026-10-15T10:00:00' }, 'started_at'],
+    [
+      'a start time in the future',
+      { started_at: new Date(Date.now() + 5 * 60_000).toISOString(), ended_at: null },
+      'started_at',
+    ],
+    ['an end before the start', { ended_at: minutesAgo(10) }, 'ended_at'],
+    ['a missing field', { ended_at: undefined }, 'ended_at'],
+  ])('%s → 400 with the field named, nothing stored', async (_label, overrides, field) => {
+    const post = await reactClient();
+    const res = await post(validSet(overrides));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid request');
+    expect(Object.keys(res.body.fields)).toContain(field);
+    expect(await storedSessions()).toEqual([]);
+  });
+
+  it('a body that is not JSON → 400 {"fields": {"body": ...}}', async () => {
+    const post = await reactClient();
+    const res = await post('{not json').set('Content-Type', 'application/json');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Invalid request', fields: { body: 'must be a JSON object' } });
+  });
+
 });
