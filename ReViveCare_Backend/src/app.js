@@ -121,4 +121,11 @@ export function createApp({ config, logger }) {
   });
   app.use(router);
 
+  // 9. Nothing matched: APPEND_SLASH redirect or Django's 404 page.
+  app.use(notFound(routePaths));
+
+  // 10. Errors from anywhere above (Express 5 forwards rejected promises here).
+  app.use(errorHandler(logger));
+
+  return app;
 }
