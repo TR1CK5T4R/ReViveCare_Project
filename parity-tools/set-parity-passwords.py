@@ -35,3 +35,11 @@ PARITY_PATIENTS = [
     {"name": "Parity Gone Chat", "email": "gone.chat@parity.revivecare.test",
      "info": "Deleted during the chat scenario.", "password": "parity-pass-gone-chat"},
 ]
+
+for spec in PARITY_PATIENTS:
+    patient, _ = Patient.objects.update_or_create(
+        email=spec["email"], defaults={"name": spec["name"], "info": spec["info"]}
+    )
+    patient.set_password(spec["password"])
+    patient.save()
+    print(f"parity patient id={patient.id}")
