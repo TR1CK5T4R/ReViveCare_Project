@@ -1,0 +1,64 @@
+[
+  {
+    "name": "E19 POST /exercise/start/ (React's call) is removed",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/exercise/start/",
+        "body": "{\"target_reps\": 12, \"exercise_type\": \"arm-raises\"}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "/exercise/start/ replaced by browser tracking; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "header:content-type",
+        "decision": "accepted",
+        "reason": "/exercise/start/ replaced by browser tracking; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "/exercise/start/ replaced by browser tracking; Node answers 404"
+      }
+    ]
+  },
+  {
+    "name": "E20 GET /exercise/status/ is removed",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/exercise/status/"
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "/exercise/status/ replaced by browser tracking; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "header:content-type",
+        "decision": "accepted",
+        "reason": "/exercise/status/ replaced by browser tracking; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "/exercise/status/ replaced by browser tracking; Node answers 404"
+      }
+    ]
+  }
+]
