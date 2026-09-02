@@ -15,3 +15,15 @@ export const REDACT_PATHS = [
   'err.detail',
   '*.err.detail',
 ];
+
+/**
+ * @param {{ level: string, pretty: boolean }} options
+ * @returns {import('pino').Logger}
+ */
+export function createLogger({ level, pretty }) {
+  return pino({
+    level,
+    redact: { paths: REDACT_PATHS, censor: '[redacted]' },
+    ...(pretty ? { transport: { target: 'pino-pretty', options: { translateTime: 'SYS:HH:MM:ss.l' } } } : {}),
+  });
+}
