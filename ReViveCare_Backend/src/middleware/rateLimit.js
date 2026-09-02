@@ -30,3 +30,28 @@ export function loginRateLimit({ max, windowMs }) {
     },
   });
 }
+
+/**
+ * Cost protection for POST /patient/chatbot/send/ (approved addition;
+ * Django had none): every message is a paid Groq call. Counted per patient
+ * (not per session: logging in again creates a new session). Runs after
+ * requirePatient, so there is always a patient id. Over the limit, the answer
+ * has the endpoint's own shape (HTTP 200, success false), which React already
+ * shows as an error.
+ *
+ * @param {{ max: number, windowMs: number }} options config.chatRateLimit
+ * @returns {import('express').RequestHandler}
+ */
+export function chatRateLimit({ max, windowMs }) {
+  return rateLimit({
+    windowMs,
+    limit: max,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    keyGenerator: (req) => `patient:${req.session.patient_id}`,
+    handler: (req, res) => {
+      req.log?.warn({ patientId: req.session.patient_id }, 'chat rate limit reached');
+      sendPythonJson(res, 200, { success: false, error: 'Too many messages' });
+    },
+  });
+}

@@ -145,4 +145,46 @@ export function loadConfig(source) {
   }
   if (issues.length > 0) throw new ConfigError(issues);
 
+  const e = parsed.data;
+  const isProduction = e.NODE_ENV === 'production';
+  return deepFreeze({
+    env: e.NODE_ENV,
+    isProduction,
+    isTest: e.NODE_ENV === 'test',
+    port: e.PORT,
+    trustProxy: e.TRUST_PROXY,
+    log: {
+      level: e.LOG_LEVEL,
+      pretty: e.LOG_PRETTY === undefined ? e.NODE_ENV === 'development' : e.LOG_PRETTY === 'true',
+    },
+    db: {
+      connectionString: e.DATABASE_URL,
+      max: e.DB_POOL_MAX,
+      idleTimeoutMillis: e.DB_IDLE_TIMEOUT_MS,
+      connectionTimeoutMillis: e.DB_CONNECTION_TIMEOUT_MS,
+      statementTimeoutMillis: e.DB_STATEMENT_TIMEOUT_MS,
+    },
+    session: {
+      secret: e.SESSION_SECRET,
+      cookieName: 'sessionid', // Django SESSION_COOKIE_NAME default
+      maxAgeSeconds: 86400, // Django SESSION_COOKIE_AGE (settings.py:172)
+      cookieSecure: e.SESSION_COOKIE_SECURE === undefined ? isProduction : e.SESSION_COOKIE_SECURE === 'true',
+      // connect-pg-simple prunes expired rows on a timer; off in tests so the
+      // timer doesn't keep the test process alive.
+      pruneIntervalSeconds: e.NODE_ENV === 'test' ? false : 15 * 60,
+    },
+    csrf: {
+      secret: e.CSRF_SECRET,
+      cookieName: 'csrftoken', // Django CSRF_COOKIE_NAME default; React reads it (djangoApi.js:9-23)
+      headerName: 'x-csrftoken', // Django CSRF_HEADER_NAME default (HTTP_X_CSRFTOKEN)
+      cookieMaxAgeSeconds: 31449600, // Django CSRF_COOKIE_AGE default (one year)
+      trustedOrigins: e.CSRF_TRUSTED_ORIGINS,
+    },
+    cors: { allowedOrigins: e.CORS_ALLOWED_ORIGINS },
+    allowedHosts: e.ALLOWED_HOSTS,
+    loginRateLimit: { max: e.LOGIN_RATE_LIMIT_MAX, windowMs: e.LOGIN_RATE_LIMIT_WINDOW_MS },
+    chatRateLimit: { max: e.CHAT_RATE_LIMIT_MAX, windowMs: e.CHAT_RATE_LIMIT_WINDOW_MS },
+    groq: { apiKey: e.GROQ_API_KEY, baseURL: e.GROQ_BASE_URL },
+    alerts: alertSettings(source),
+  });
 }
