@@ -114,3 +114,61 @@ export function getPool() {
   if (!pool) throw new Error('Database pool not initialised: call initPool() first');
   return pool;
 }
+
+/**
+ * Send slow-query warnings and idle-client errors to the app's logger.
+ *
+ * @param {import('pino').Logger} logger
+ */
+export function setDbLogger(logger) {
+  logSlowQuery = (entry) => logger.warn(entry, 'slow query');
+  logError = (entry) => logger.error(entry);
+}
+
+/**
+ * Per-request count of app queries (dev only, see app.js): finds N+1 loops.
+ * Counts query() calls; the session store's own SQL (one read per request with
+ * a cookie, one write when the session changed) and BEGIN/COMMIT aren't included.
+ */
+export const requestQueries = new AsyncLocalStorage();
+
+/**
+ * Run one parameterized query. Values always go in `params` ($1, $2, …),
+ * never into `text`.
+ *
+ * Queries slower than 200 ms are reported with their SQL text and duration
+ * only; parameter values may hold patient data, so they are never logged.
+ *
+ * @param {string} text SQL with $n placeholders
+ * @param {unknown[]} [params]
+ * @param {pg.Pool | pg.PoolClient} [client] pass the transaction client inside withTransaction
+ * @returns {Promise<pg.QueryResult>}
+ */
+export async function query(text, params = [], client = getPool()) {
+  const counter = requestQueries.getStore();
+  if (counter) counter.count += 1;
+  const started = performance.now();
+  const result = await client.query(text, params);
+  const durationMs = performance.now() - started;
+  if (durationMs > SLOW_QUERY_MS) {
+    logSlowQuery({
+      sql: text.replace(/\s+/g, ' ').trim().slice(0, 500),
+      durationMs: Math.round(durationMs),
+      rows: result.rowCount,
+    });
+  }
+  return result;
+}
+
+/**
+ * Close every connection. Used on graceful shutdown, at the end of scripts and
+ * after test runs. Safe to call when no pool exists.
+ *
+ * @returns {Promise<void>}
+ */
+export async function closePool() {
+  if (!pool) return;
+  const closing = pool;
+  pool = null;
+  await closing.end();
+}
