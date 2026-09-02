@@ -198,25 +198,19 @@ export const exerciseAPI = {
     getSR: async () => apiCall('/sr'),
     getSRTwo: async () => apiCall('/srtwo'),
 
-    // Workout control endpoints
-    startWorkout: async (targetReps = 12, exerciseType = 'shoulder-extension') => {
-        return apiCall('/exercise/start/', 'POST', {
+    // Store one finished or abandoned set (E23). Pose tracking and rep
+    // counting run in the browser (hooks/usePoseWorkout.js), replacing Django's
+    // /exercise/start/, /status/, /reset/ and /video_feed/.
+    saveSession: async ({ exerciseType, targetReps, excellentReps, goodReps, partialReps, startedAt, endedAt }) => {
+        return apiCall('/exercise/sessions/', 'POST', {
+            exercise_type: exerciseType,
             target_reps: targetReps,
-            exercise_type: exerciseType
+            excellent_reps: excellentReps,
+            good_reps: goodReps,
+            partial_reps: partialReps,
+            started_at: startedAt,
+            ended_at: endedAt,
         });
-    },
-
-    getWorkoutStatus: async () => {
-        return apiCall('/exercise/status/');
-    },
-
-    resetWorkout: async () => {
-        return apiCall('/exercise/reset/', 'POST');
-    },
-
-    // Video feed URL (not a JSON endpoint)
-    getVideoFeedUrl: () => {
-        return `${API_BASE_URL}/exercise/video_feed/`;
     },
 };
 
