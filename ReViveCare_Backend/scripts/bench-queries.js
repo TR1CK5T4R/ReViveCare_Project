@@ -216,3 +216,108 @@ async function benchQuery(client, q, params) {
 }
 
 // ─── Modes ───────────────────────────────────────────────────────────────────
+
+async function bench(databaseEnvVar, savePath) {
+  const target = resolveDatabase(databaseEnvVar);
+  initPool({ connectionString: target.url, applicationName: 'revivecare-bench' });
+  const client = await getPool().connect();
+  try {
+    // Same, fresh statistics for both runs, so the planner sees the real table sizes.
+    await client.query('ANALYZE');
+    const params = await resolveParams(client);
+    const tables = {};
+    for (const t of [
+      'users',
+      'patients',
+      'doctors',
+      'exercise_sessions',
+      'chat_messages',
+      'patient_reports',
+      'sessions',
+    ]) {
+      tables[t] = (await client.query(`SELECT count(*) AS n FROM ${t}`)).rows[0].n;
+    }
+    const { rows: migrations } = await client.query('SELECT version FROM schema_migrations ORDER BY version');
+    const { rows: version } = await client.query('SHOW server_version');
+
+    const label = path.basename(savePath, '.json');
+    const rawDir = path.join(ROOT, 'bench', 'raw', label);
+    await mkdir(rawDir, { recursive: true });
+    const results = [];
+    for (const q of QUERIES) {
+      const { summary, plan } = await benchQuery(client, q, q.params(params));
+      results.push(summary);
+      await writeFile(path.join(rawDir, `${q.id}.json`), JSON.stringify(plan, null, 2));
+      console.log(
+        `${q.id.padEnd(20)} median ${summary.medianMs.toFixed(3)} ms  p95 ${summary.p95Ms.toFixed(3)} ms  ${describePlan(summary)}`,
+      );
+    }
+
+    const output = {
+      label,
+      database: target.dbName,
+      measuredAt: new Date().toISOString(),
+      postgresVersion: version[0].server_version,
+      migrationsApplied: migrations.map((m) => m.version),
+      method: `${WARMUP_RUNS} warm-up runs, then ${MEASURED_RUNS} x EXPLAIN (ANALYZE, BUFFERS); server-side Execution Time`,
+      tableRows: tables,
+      queries: results,
+    };
+    await mkdir(path.dirname(path.resolve(ROOT, savePath)), { recursive: true });
+    await writeFile(path.resolve(ROOT, savePath), `${JSON.stringify(output, null, 2)}\n`);
+    console.log(`Saved ${savePath}`);
+  } finally {
+    client.release();
+  }
+}
+
+async function compare(beforePath, afterPath) {
+  const before = JSON.parse(await readFile(path.resolve(ROOT, beforePath), 'utf8'));
+  const after = JSON.parse(await readFile(path.resolve(ROOT, afterPath), 'utf8'));
+  const lines = [
+    `Before: ${before.label} (migrations ${before.migrationsApplied.join(',')})  After: ${after.label} (migrations ${after.migrationsApplied.join(',')})`,
+    '',
+    '| Query | Serves | Before median / p95 (ms) | After median / p95 (ms) | Median change | Plan before → after |',
+    '|---|---|---|---|---|---|',
+  ];
+  for (const b of before.queries) {
+    const a = after.queries.find((q) => q.id === b.id);
+    if (!a) continue;
+    const change = ((a.medianMs - b.medianMs) / b.medianMs) * 100;
+    const plan =
+      describePlan(b) === describePlan(a)
+        ? `${describePlan(b)} (unchanged)`
+        : `${describePlan(b)} → ${describePlan(a)}`;
+    lines.push(
+      `| \`${b.id}\`${b.candidate ? ' (candidate)' : ''} | ${b.serves} | ${b.medianMs.toFixed(3)} / ${b.p95Ms.toFixed(3)} | ${a.medianMs.toFixed(3)} / ${a.p95Ms.toFixed(3)} | ${change >= 0 ? '+' : ''}${change.toFixed(0)}% | ${plan} |`,
+    );
+  }
+  console.log(lines.join('\n'));
+}
+
+async function main() {
+  const { values: args, positionals } = parseArgs({
+    allowPositionals: true,
+    options: {
+      database: { type: 'string', default: 'PARITY_DATABASE_URL' },
+      save: { type: 'string' },
+      compare: { type: 'boolean', default: false },
+    },
+  });
+  if (args.compare) {
+    if (positionals.length !== 2) throw new Error('Usage: --compare <before.json> <after.json>');
+    await compare(positionals[0], positionals[1]);
+  } else {
+    if (!args.save) throw new Error('Usage: --save bench/<label>.json [--database PARITY_DATABASE_URL]');
+    await bench(args.database, args.save);
+  }
+}
+
+try {
+  await main();
+} catch (err) {
+  console.error(err.message);
+  process.exitCode = 1;
+} finally {
+  await closePool();
+}
