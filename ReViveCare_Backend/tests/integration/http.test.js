@@ -61,4 +61,39 @@ describe('CORS (django-cors-headers settings)', () => {
     expect(res.headers['access-control-allow-credentials']).toBe('true');
   });
 
+  it('sends no CORS headers at all for other origins', async () => {
+    const res = await request(app).get('/csrf/').set('Origin', 'http://evil.test');
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
+    expect(res.headers.vary).toMatch(/Origin/);
+  });
+
+  it("answers a preflight with an empty 200 and Django's allowed methods/headers", async () => {
+    const res = await request(app)
+      .options('/patient/logout/')
+      .set('Origin', 'http://localhost:5173')
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'x-csrftoken, content-type');
+    expect(res.status).toBe(200);
+    expect(res.text).toBe('');
+    expect(res.headers['content-type']).toBe('text/html; charset=utf-8');
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
+    expect(res.headers['access-control-allow-methods']).toBe('DELETE,GET,OPTIONS,PATCH,POST,PUT');
+    expect(res.headers['access-control-allow-headers']).toBe(
+      'accept,authorization,content-type,user-agent,x-csrftoken,x-requested-with',
+    );
+    expect(res.headers['access-control-max-age']).toBe('86400');
+  });
+
+  it('answers a preflight from another origin with an empty 200 and no CORS headers', async () => {
+    const res = await request(app)
+      .options('/patient/logout/')
+      .set('Origin', 'http://evil.test')
+      .set('Access-Control-Request-Method', 'POST');
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    expect(res.headers['access-control-allow-methods']).toBeUndefined();
+  });
+
 });
