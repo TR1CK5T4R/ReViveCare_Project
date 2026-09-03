@@ -1,0 +1,213 @@
+{
+  "label": "baseline",
+  "database": "revivecare_parity",
+  "measuredAt": "2026-10-17T19:40:00.016Z",
+  "postgresVersion": "14.20 (Homebrew)",
+  "migrationsApplied": [
+    "0001",
+    "0002",
+    "0003",
+    "0004",
+    "0005",
+    "0006"
+  ],
+  "method": "5 warm-up runs, then 20 x EXPLAIN (ANALYZE, BUFFERS); server-side Execution Time",
+  "tableRows": {
+    "users": 1260,
+    "patients": 1200,
+    "doctors": 60,
+    "exercise_sessions": 62428,
+    "chat_messages": 84704,
+    "patient_reports": 3287,
+    "sessions": 20000
+  },
+  "queries": [
+    {
+      "id": "login_lookup",
+      "serves": "E07 POST /login/",
+      "candidate": false,
+      "medianMs": 0.007,
+      "p95Ms": 0.012,
+      "minMs": 0.007,
+      "maxMs": 0.012,
+      "planningMedianMs": 0.037,
+      "topNode": "Nested Loop",
+      "scans": [
+        "Index Scan on users using users_email_role_key",
+        "Index Scan on patients using patients_user_id_key"
+      ],
+      "rowsReturned": 1,
+      "sharedHitBlocks": 6,
+      "sharedReadBlocks": 0
+    },
+    {
+      "id": "patient_by_id",
+      "serves": "E08 GET /patient/dashboard/, E11 POST /patient/chatbot/send/",
+      "candidate": false,
+      "medianMs": 0.005,
+      "p95Ms": 0.006,
+      "minMs": 0.004,
+      "maxMs": 0.006,
+      "planningMedianMs": 0.036,
+      "topNode": "Nested Loop",
+      "scans": [
+        "Index Scan on patients using patients_pkey",
+        "Index Scan on users using users_id_role_key"
+      ],
+      "rowsReturned": 1,
+      "sharedHitBlocks": 6,
+      "sharedReadBlocks": 0
+    },
+    {
+      "id": "doctor_info_lookup",
+      "serves": "E06 POST /doctor_info (row-locked lookup before the upsert)",
+      "candidate": false,
+      "medianMs": 0.009,
+      "p95Ms": 0.023,
+      "minMs": 0.008,
+      "maxMs": 0.049,
+      "planningMedianMs": 0.034,
+      "topNode": "LockRows",
+      "scans": [
+        "Index Scan on users using users_email_role_key",
+        "Index Scan on patients using patients_user_id_key"
+      ],
+      "rowsReturned": 1,
+      "sharedHitBlocks": 8,
+      "sharedReadBlocks": 0
+    },
+    {
+      "id": "session_load",
+      "serves": "every request with a session cookie (connect-pg-simple get)",
+      "candidate": false,
+      "medianMs": 0.005,
+      "p95Ms": 0.006,
+      "minMs": 0.005,
+      "maxMs": 0.007,
+      "planningMedianMs": 0.007,
+      "topNode": "Index Scan",
+      "scans": [
+        "Index Scan on sessions using sessions_pkey"
+      ],
+      "rowsReturned": 1,
+      "sharedHitBlocks": 4,
+      "sharedReadBlocks": 0
+    },
+    {
+      "id": "session_save",
+      "serves": "login, chat, any request that changes the session (connect-pg-simple set)",
+      "candidate": false,
+      "medianMs": 0.015,
+      "p95Ms": 0.094,
+      "minMs": 0.012,
+      "maxMs": 0.513,
+      "planningMedianMs": 0.004,
+      "topNode": "ModifyTable",
+      "scans": [],
+      "rowsReturned": 1,
+      "sharedHitBlocks": 12,
+      "sharedReadBlocks": 0
+    },
+    {
+      "id": "session_prune",
+      "serves": "connect-pg-simple pruning, every 15 minutes",
+      "candidate": false,
+      "medianMs": 1.186,
+      "p95Ms": 2.591,
+      "minMs": 1.132,
+      "maxMs": 2.771,
+      "planningMedianMs": 0.009,
+      "topNode": "ModifyTable",
+      "scans": [
+        "Seq Scan on sessions"
+      ],
+      "rowsReturned": 0,
+      "sharedHitBlocks": 2559,
+      "sharedReadBlocks": 0
+    },
+    {
+      "id": "exercise_insert",
+      "serves": "E23 POST /exercise/sessions/ (repositories/exercise.repository.js)",
+      "candidate": false,
+      "medianMs": 0.014,
+      "p95Ms": 0.108,
+      "minMs": 0.013,
+      "maxMs": 0.115,
+      "planningMedianMs": 0.004,
+      "topNode": "ModifyTable",
+      "scans": [],
+      "rowsReturned": 1,
+      "sharedHitBlocks": 4,
+      "sharedReadBlocks": 0
+    },
+    {
+      "id": "exercise_history",
+      "serves": "candidate: latest 20 workouts of a patient (no endpoint reads them)",
+      "candidate": true,
+      "medianMs": 2.307,
+      "p95Ms": 3.977,
+      "minMs": 2.168,
+      "maxMs": 5.418,
+      "planningMedianMs": 0.01,
+      "topNode": "Limit",
+      "scans": [
+        "Seq Scan on exercise_sessions"
+      ],
+      "rowsReturned": 20,
+      "sharedHitBlocks": 927,
+      "sharedReadBlocks": 0
+    },
+    {
+      "id": "chat_history",
+      "serves": "candidate: stored chat of a patient (no endpoint; live history is in the session)",
+      "candidate": true,
+      "medianMs": 2.965,
+      "p95Ms": 4.446,
+      "minMs": 2.875,
+      "maxMs": 4.764,
+      "planningMedianMs": 0.011,
+      "topNode": "Limit",
+      "scans": [
+        "Seq Scan on chat_messages"
+      ],
+      "rowsReturned": 50,
+      "sharedHitBlocks": 1486,
+      "sharedReadBlocks": 0
+    },
+    {
+      "id": "doctor_patient_list",
+      "serves": "candidate: a doctor's patients (React shows hard-coded data; no endpoint)",
+      "candidate": true,
+      "medianMs": 0.175,
+      "p95Ms": 0.455,
+      "minMs": 0.168,
+      "maxMs": 0.915,
+      "planningMedianMs": 0.033,
+      "topNode": "Sort",
+      "scans": [
+        "Seq Scan on users",
+        "Seq Scan on patients"
+      ],
+      "rowsReturned": 27,
+      "sharedHitBlocks": 54,
+      "sharedReadBlocks": 0
+    },
+    {
+      "id": "high_risk_messages",
+      "serves": "candidate: latest AI replies above the 0.75 alert threshold (no endpoint)",
+      "candidate": true,
+      "medianMs": 5.666,
+      "p95Ms": 15.865,
+      "minMs": 4.64,
+      "maxMs": 29.543,
+      "planningMedianMs": 0.016,
+      "topNode": "Limit",
+      "scans": [
+        "Seq Scan on chat_messages"
+      ],
+      "rowsReturned": 50,
+      "sharedHitBlocks": 1486,
+      "sharedReadBlocks": 0
+    }
+  ]
+}
