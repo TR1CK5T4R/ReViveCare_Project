@@ -23,11 +23,7 @@
         },
         "csrf": true,
         "compare_session": true,
-        "compare_headers": [
-          "vary",
-          "access-control-allow-origin",
-          "access-control-allow-credentials"
-        ]
+        "compare_headers": ["vary", "access-control-allow-origin", "access-control-allow-credentials"]
       }
     ]
   },
@@ -56,9 +52,7 @@
           "Accept": "application/json"
         },
         "compare_session": true,
-        "compare_headers": [
-          "vary"
-        ]
+        "compare_headers": ["vary"]
       }
     ]
   },
@@ -120,9 +114,7 @@
           "Accept": "text/html"
         },
         "compare_session": true,
-        "compare_headers": [
-          "vary"
-        ]
+        "compare_headers": ["vary"]
       }
     ]
   },
@@ -169,9 +161,7 @@
           "Accept": "application/json"
         },
         "compare_session": true,
-        "compare_headers": [
-          "vary"
-        ]
+        "compare_headers": ["vary"]
       },
       {
         "method": "GET",
@@ -212,6 +202,116 @@
         "headers": {
           "Accept": "application/json"
         }
+      }
+    ]
+  },
+  {
+    "name": "dashboard after logout is 401",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/logout/"
+      },
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Accept": "application/json"
+        }
+      }
+    ]
+  },
+  {
+    "name": "APPEND_SLASH: /patient/dashboard redirects to the slash URL",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/dashboard?x=1"
+      }
+    ]
+  },
+  {
+    "name": "trailing whitespace in Content-Type",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Content-Type": "application/json "
+        }
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "Node's HTTP parser strips trailing whitespace from header values (RFC 9110 OWS), so Node sees exactly application/json (JSON mode, 401); Django's dev server keeps the space (HTML mode, 302)"
+      },
+      {
+        "step": 0,
+        "kind": "header:location",
+        "decision": "accepted",
+        "reason": "302 Location /login/ vs no redirect"
+      },
+      {
+        "step": 0,
+        "kind": "header:content-type",
+        "decision": "accepted",
+        "reason": "redirect vs JSON response"
+      },
+      {
+        "step": 0,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "empty redirect body vs the 401 JSON body"
+      }
+    ]
+  },
+  {
+    "name": "dashboard with an unknown session cookie deletes it (JSON mode)",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Accept": "application/json",
+          "Cookie": "sessionid=abcdefghijklmnopqrstuvwxyz012345"
+        },
+        "compare_headers": ["vary"]
+      }
+    ]
+  },
+  {
+    "name": "dashboard with an unknown session cookie deletes it (HTML mode)",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/dashboard/",
+        "headers": {
+          "Cookie": "sessionid=abcdefghijklmnopqrstuvwxyz012345"
+        }
+      }
+    ]
+  },
+  {
+    "name": "a too-short session cookie on a view that never reads the session",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/csrf/",
+        "headers": {
+          "Cookie": "sessionid=abc"
+        }
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "cookie:sessionid",
+        "decision": "accepted",
+        "reason": "item 17: Django deletes a session cookie shorter than 8 characters on every response; Node only where a view reads the session"
       }
     ]
   }

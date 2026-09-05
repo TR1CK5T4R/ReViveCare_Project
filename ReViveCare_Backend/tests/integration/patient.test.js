@@ -177,3 +177,86 @@ describe('JSON-mode detection (R-AUTH-02)', () => {
     }
   });
 });
+
+describe('/patient/dashboard/ HTML mode (template dropped, redirects kept:)', () => {
+  it('redirects to /login/ without a session (empty body, Vary: Cookie)', async () => {
+    const res = await request(app).get('/patient/dashboard/').set('Accept', 'text/html');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/login/');
+    expect(res.text).toBe('');
+    expect(res.headers.vary).toMatch(/Cookie/);
+    expect(setCookies(res).messages).toBeUndefined();
+  });
+
+  it('redirects to /login/ when the patient was deleted', async () => {
+    const patient = await createPatient({ email: 'gone@example.test' });
+    const { agent } = await loggedIn('gone@example.test');
+    await query('DELETE FROM users WHERE id = $1', [patient.userId]);
+    const res = await agent.get('/patient/dashboard/').set('Accept', 'text/html');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/login/');
+  });
+
+  it("answers a logged-in patient with Django's 404 page instead of the dropped template", async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const { agent } = await loggedIn('asha@example.test');
+    const res = await agent.get('/patient/dashboard/').set('Accept', 'text/html');
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toBe('text/html; charset=utf-8');
+    expect(res.text).toBe(NOT_FOUND);
+  });
+});
+
+describe('/patient/dashboard/ methods and routing', () => {
+  it.each(['post', 'put', 'patch', 'delete'])(
+    '%s works like GET and needs no CSRF token (@csrf_exempt)',
+    async (method) => {
+      const patient = await createPatient({ email: 'asha@example.test' });
+      const { agent } = await loggedIn('asha@example.test');
+      const res = await agent[method]('/patient/dashboard/').set(REACT_HEADERS).set('Origin', 'http://evil.example');
+      expect(res.status).toBe(200);
+      expect(res.body.patient.id).toBe(patient.id);
+    },
+  );
+
+  it('ignores a malformed JSON body (Django never reads it)', async () => {
+    const res = await request(app).post('/patient/dashboard/').set(REACT_HEADERS).send('{not json');
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'Not authenticated' });
+  });
+
+  it('HEAD answers with the headers and no body', async () => {
+    const res = await request(app).head('/patient/dashboard/').set(REACT_HEADERS);
+    expect(res.status).toBe(401);
+    expect(res.headers['content-type']).toBe('application/json');
+    expect(res.text).toBeUndefined();
+  });
+
+  it('a plain OPTIONS (not a preflight) reaches the view', async () => {
+    const res = await request(app).options('/patient/dashboard/').set(REACT_HEADERS);
+    expect(res.status).toBe(401);
+  });
+
+  it('APPEND_SLASH: /patient/dashboard → 301 /patient/dashboard/ (query kept)', async () => {
+    const res = await request(app).get('/patient/dashboard?x=1');
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe('/patient/dashboard/?x=1');
+  });
+
+  it('is case-sensitive like Django URL matching', async () => {
+    expect((await request(app).get('/patient/Dashboard/').set(REACT_HEADERS)).status).toBe(404);
+  });
+
+  it('answers a database error with the Django 500 page', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const { agent } = await loggedIn('asha@example.test');
+    await query('ALTER TABLE patients RENAME COLUMN info TO info_renamed');
+    try {
+      const res = await agent.get('/patient/dashboard/').set(REACT_HEADERS);
+      expect(res.status).toBe(500);
+      expect(res.text).toContain('<h1>Server Error (500)</h1>');
+    } finally {
+      await query('ALTER TABLE patients RENAME COLUMN info_renamed TO info');
+    }
+  });
+});

@@ -126,4 +126,36 @@ describe('GET /static/Patients/videos/<file> (E22)', () => {
     },
   );
 
+  it.each([
+    '/static/Patients/videos/missing.mp4',
+    '/static/Patients/videos/',
+    '/static/Patients/videos',
+    '/static/',
+    '/static',
+    '/static/patients/videos/bc.mp4', // case-sensitive, even on a case-insensitive disk
+    '/static/Patients/videos/BC.MP4',
+    '/STATIC/Patients/videos/bc.mp4',
+    '/static/Patients/videos/../videos/bc.mp4',
+    '/static/Patients/videos/%2e%2e/%2e%2e/%2e%2e/package.json',
+    '/static/Patients/videos/%E0%A4%A.mp4', // malformed percent-encoding
+  ])("%s → Django's 404 page", async (url) => {
+    const res = await request(app).get(url);
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toBe('text/html; charset=utf-8');
+  });
+
+  it('never reads the session table (served before the session middleware)', async () => {
+    // A session cookie for a store that would fail: the static response still works.
+    await query('ALTER TABLE sessions RENAME TO sessions_renamed');
+    try {
+      const res = await request(app).head('/static/Patients/videos/bc.mp4').set('Cookie', 'sessionid=s%3Aabc.def');
+      expect(res.status).toBe(200);
+    } finally {
+      await query('ALTER TABLE sessions_renamed RENAME TO sessions');
+    }
+  });
+
+  it('is served whatever the Host header, like WhiteNoise (before ALLOWED_HOSTS)', async () => {
+    expect((await request(app).head('/static/Patients/videos/bc.mp4').set('Host', 'evil.example')).status).toBe(200);
+  });
 });

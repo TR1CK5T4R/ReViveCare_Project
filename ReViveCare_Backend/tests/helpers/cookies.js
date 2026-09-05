@@ -18,3 +18,9 @@ export function setCookies(res) {
   }
   return cookies;
 }
+
+/** express-session cookie value "s:<sid>.<signature>" (URL-encoded) → sid. */
+export function sidFromCookieValue(value) {
+  const decoded = decodeURIComponent(value);
+  return decoded.slice(2, decoded.lastIndexOf('.'));
+}

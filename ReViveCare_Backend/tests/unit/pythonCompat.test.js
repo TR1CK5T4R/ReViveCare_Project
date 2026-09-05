@@ -37,4 +37,33 @@ describe('pyStrip (Python str.strip())', () => {
     expect(mismatches).toEqual([]);
   });
 
+  it('differs from String.prototype.trim where Python differs', () => {
+    expect(pyStrip('\x1cA\x85')).toBe('A'); // Python strips; trim() does not
+    expect(pyStrip('﻿A')).toBe('﻿A'); // trim() strips the BOM; Python does not
+    expect(pyStrip('  a b  ')).toBe('a b');
+  });
+});
+
+describe('pyLower (Python str.lower())', () => {
+  it('matches Python for every code point Python lower-cases', () => {
+    const mismatches = golden.lower.filter(([c, lower]) => pyLower(String.fromCodePoint(c)) !== lower);
+    expect(mismatches).toEqual([]);
+  });
+
+  it('only differs on code points newer than Python 3.12 Unicode data', () => {
+    const pythonMapped = new Set(golden.lower.map(([c]) => c));
+    const jsOnly = allCodePoints().filter((c) => {
+      const s = String.fromCodePoint(c);
+      return !pythonMapped.has(c) && pyLower(s) !== s;
+    });
+    expect(jsOnly).toEqual(NEWER_THAN_PYTHON);
+  });
+});
+
+describe('strip().lower() on whole strings (login email, R-AUTH-01)', () => {
+  it.each(golden.samples)('matches Python for $input', (sample) => {
+    expect(pyStrip(sample.input)).toBe(sample.strip);
+    expect(pyLower(sample.input)).toBe(sample.lower);
+    expect(pyLower(pyStrip(sample.input))).toBe(sample.strip_lower);
+  });
 });

@@ -131,4 +131,50 @@ describe('POST /exercise/sessions/ (E23): rejects', () => {
     expect(res.body).toEqual({ error: 'Invalid request', fields: { body: 'must be a JSON object' } });
   });
 
+  it('not logged in → 401 {"error": "Not authenticated"}', async () => {
+    const agent = request.agent(app);
+    const token = decodeURIComponent(setCookies(await agent.get('/csrf/')).csrftoken.value);
+    const res = await agent
+      .post('/exercise/sessions/')
+      .set('Origin', ORIGIN)
+      .set('X-CSRFToken', token)
+      .send(validSet());
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'Not authenticated' });
+  });
+
+  it('without the CSRF token → 403, nothing stored', async () => {
+    const agent = request.agent(app);
+    await agent.post('/login/').type('form').send({ email: 'asha@example.test' });
+    const res = await agent.post('/exercise/sessions/').send(validSet());
+    expect(res.status).toBe(403);
+    expect(await storedSessions()).toEqual([]);
+  });
+
+  it('patient deleted after login → 404 {"error": "Patient not found"}', async () => {
+    const post = await reactClient();
+    await query('DELETE FROM users WHERE id = $1', [patient.userId]);
+    const res = await post(validSet());
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'Patient not found' });
+  });
+
+  it.each(['get', 'put', 'delete'])('%s → 405 Allow: POST', async (method) => {
+    const res = await request(app)[method]('/exercise/sessions/');
+    expect(res.status).toBe(405);
+    expect(res.headers.allow).toBe('POST');
+  });
+});
+
+describe('the Django exercise endpoints replaced by browser tracking', () => {
+  it.each([
+    ['get', '/exercise/video_feed/'],
+    ['post', '/exercise/start/'],
+    ['get', '/exercise/status/'],
+    ['post', '/exercise/reset/'],
+    ['get', '/exercise'],
+    ['get', '/sr'],
+  ])('%s %s → 404', async (method, path) => {
+    expect((await request(app)[method](path)).status).toBe(404);
+  });
 });

@@ -191,4 +191,67 @@ describe('/patient/logout/ (E09)', () => {
     }
   });
 
+  it('sends no Set-Cookie when the request had no session cookie', async () => {
+    const out = await request(app).get('/patient/logout/');
+    expect(out.status).toBe(302);
+    expect(setCookies(out).sessionid).toBeUndefined();
+  });
+
+  it("POST without a CSRF cookie → 403 with Django's CSRF page (and the cookie hint)", async () => {
+    const res = await request(app).post('/patient/logout/');
+    expect(res.status).toBe(403);
+    expect(res.headers['content-type']).toBe('text/html; charset=utf-8');
+    expect(res.text).toContain('CSRF verification failed. Request aborted.');
+    expect(res.text).toContain('this site requires a CSRF cookie');
+  });
+
+  it('POST with the cookie but no X-CSRFToken header → 403', async () => {
+    const agent = request.agent(app);
+    await csrfToken(agent);
+    const res = await agent.post('/patient/logout/');
+    expect(res.status).toBe(403);
+    expect(res.text).not.toContain('this site requires a CSRF cookie');
+  });
+
+  it("POST with a header that doesn't match the cookie → 403", async () => {
+    const agent = request.agent(app);
+    await csrfToken(agent);
+    expect((await agent.post('/patient/logout/').set('X-CSRFToken', 'forged')).status).toBe(403);
+  });
+
+  it('POST with matching cookie + X-CSRFToken (what React sends) logs out', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const agent = request.agent(app);
+    const token = await csrfToken(agent); // before login, as React does
+    const { res } = await login('asha@example.test', agent);
+    const sid = sidFromCookieValue(setCookies(res).sessionid.value);
+    const out = await agent.post('/patient/logout/').set('X-CSRFToken', token).set('Origin', TRUSTED_ORIGIN);
+    expect(out.status).toBe(302);
+    expect(await sessionData(sid)).toBeNull();
+  });
+
+  it('POST from an untrusted Origin → 403 even with a valid token (Django origin check)', async () => {
+    const agent = request.agent(app);
+    const token = await csrfToken(agent);
+    const res = await agent.post('/patient/logout/').set('X-CSRFToken', token).set('Origin', 'http://evil.test');
+    expect(res.status).toBe(403);
+  });
+
+  it("accepts the server's own origin", async () => {
+    const agent = request.agent(app);
+    const token = await csrfToken(agent);
+    // Django's good_origin: scheme + the request's own Host header.
+    const res = await agent
+      .post('/patient/logout/')
+      .set('Host', 'localhost:8000')
+      .set('Origin', 'http://localhost:8000')
+      .set('X-CSRFToken', token);
+    expect(res.status).toBe(302);
+    const otherPort = await agent
+      .post('/patient/logout/')
+      .set('Host', 'localhost:8000')
+      .set('Origin', 'http://localhost:9999')
+      .set('X-CSRFToken', token);
+    expect(otherPort.status).toBe(403);
+  });
 });

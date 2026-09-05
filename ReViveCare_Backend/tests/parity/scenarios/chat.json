@@ -25,10 +25,7 @@
         "compare_session": true,
         "compare_llm_request": true,
         "csrf": true,
-        "compare_headers": [
-          "vary",
-          "access-control-allow-origin"
-        ]
+        "compare_headers": ["vary", "access-control-allow-origin"]
       }
     ]
   },
@@ -342,6 +339,327 @@
         "body": "{\"message\": \"x [[reply:missing_score]]\"}",
         "compare_session": true,
         "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "null score → Server error, history unchanged",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"x [[reply:null_score]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "non-string patient_response is returned as is",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"x [[reply:dict_response]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"y [[reply:float_response]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "the model API failing (500 on every attempt) → retried, then Server error",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"x [[status:500]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "the model API refusing (400) → not retried, Server error",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"x [[status:400]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "not logged in",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"hi\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Cookie": "sessionid=abcdefghijklmnopqrstuvwxyz012345"
+        },
+        "body": "{}"
+      }
+    ]
+  },
+  {
+    "name": "empty and whitespace-only messages",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \" 　\\n \"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"language\": \"hindi\"}",
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "bad bodies → Server error",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": ",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "[\"hi\"]",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": 5}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"hi\", \"language\": null}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"hi\", \"language\": 3}",
+        "compare_session": true,
+        "compare_llm_request": true
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"chunked\"}",
+        "chunked": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "the body is JSON whatever the Content-Type",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "text/plain"
+        },
+        "body": "{\"message\": \"plain [[reply:calm]]\"}",
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "patient deleted after login → Patient not found",
+    "actor": "patient_gone_chat",
+    "steps": [
+      {
+        "action": "delete_patient",
+        "email": "gone.chat@parity.revivecare.test"
+      },
+      {
+        "method": "POST",
+        "path": "/patient/chatbot/send/",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\"message\": \"hi [[reply:calm]]\"}",
+        "compare_session": true,
+        "compare_llm_request": true
+      }
+    ]
+  },
+  {
+    "name": "other methods are 405",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/chatbot/send/",
+        "compare_headers": ["allow"]
+      },
+      {
+        "method": "PUT",
+        "path": "/patient/chatbot/send/",
+        "compare_headers": ["allow"]
+      },
+      {
+        "method": "DELETE",
+        "path": "/patient/chatbot/send/",
+        "compare_headers": ["allow"]
+      }
+    ]
+  },
+  {
+    "name": "E10 /patient/chatbot/ is a dropped HTML page",
+    "actor": "patient_asha",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/patient/chatbot/",
+        "headers": {
+          "Accept": "text/html"
+        }
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 1,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "chatbot.html dropped → 404"
+      },
+      {
+        "step": 1,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "template vs 404 page"
+      },
+      {
+        "step": 1,
+        "kind": "cookie:csrftoken",
+        "decision": "accepted",
+        "reason": "the dropped chatbot.html page set the CSRF cookie; React gets it from /csrf/"
+      },
+      {
+        "step": 1,
+        "kind": "cookie:sessionid",
+        "decision": "accepted",
+        "reason": "the dropped chatbot view re-saved the session"
       }
     ]
   }

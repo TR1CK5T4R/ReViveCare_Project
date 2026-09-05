@@ -36,3 +36,36 @@ describe('query()', () => {
     expect(JSON.stringify(entries)).not.toContain('patient medical text');
   });
 });
+
+describe('withTransaction', () => {
+  it('commits when the callback succeeds and returns its value', async () => {
+    await truncateAll();
+    const id = await withTransaction(async (client) => {
+      const { rows } = await client.query(
+        "INSERT INTO users (role, name, email) VALUES ('patient', 'T', 't@example.test') RETURNING id",
+      );
+      return rows[0].id;
+    });
+    expect((await query('SELECT count(*) AS n FROM users WHERE id = $1', [id])).rows[0].n).toBe(1);
+  });
+
+  it('rolls back everything when the callback throws, and rethrows', async () => {
+    await truncateAll();
+    await expect(
+      withTransaction(async (client) => {
+        await client.query("INSERT INTO users (role, name, email) VALUES ('patient', 'T', 't@example.test')");
+        throw new Error('fail after insert');
+      }),
+    ).rejects.toThrow('fail after insert');
+    expect((await query('SELECT count(*) AS n FROM users')).rows[0].n).toBe(0);
+  });
+
+  it('always releases the client back to the pool', async () => {
+    const pool = getPool();
+    await withTransaction(async () => {}).catch(() => {});
+    await withTransaction(async () => {
+      throw new Error('x');
+    }).catch(() => {});
+    expect(pool.totalCount - pool.idleCount).toBe(0);
+  });
+});

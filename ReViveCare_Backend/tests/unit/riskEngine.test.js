@@ -161,4 +161,80 @@ describe('the rules, one by one', () => {
     );
   });
 
+  it('explains why it alerted (internal only)', () => {
+    expect(evaluatePatient({ llmReply: reply(0.9) }).reasons).toEqual(['R-CHAT-04: seriousness_score 0.9 gt 0.75']);
+  });
+});
+
+describe('config/riskRules.js', () => {
+  it('holds the Django values and is frozen', () => {
+    const p = riskRules.parameters.seriousness_score;
+    expect(p.clamp).toEqual({ min: 0, max: 1 });
+    expect(p.rules).toEqual([expect.objectContaining({ operator: 'gt', threshold: 0.75, flag: 'alert_doctor' })]);
+    expect(Object.isFrozen(p.rules[0])).toBe(true);
+  });
+
+  it('a changed threshold changes the engine without code changes', () => {
+    const rules = validateRiskRules({
+      ...structuredClone(riskRules),
+      parameters: {
+        seriousness_score: {
+          ...structuredClone(riskRules.parameters.seriousness_score),
+          rules: [{ ...riskRules.parameters.seriousness_score.rules[0], threshold: 0.5 }],
+        },
+      },
+    });
+    expect(evaluateParameter('seriousness_score', 0.6, rules).flags).toEqual(['alert_doctor']);
+    expect(evaluateParameter('seriousness_score', 0.6).flags).toEqual([]);
+  });
+
+  it.each([
+    ['an unknown operator', (r) => (r.parameters.seriousness_score.rules[0].operator = 'between')],
+    ['a threshold outside the clamp', (r) => (r.parameters.seriousness_score.rules[0].threshold = 1.5)],
+    ['an inverted clamp', (r) => (r.parameters.seriousness_score.clamp = { min: 1, max: 0 })],
+    ['a non-numeric threshold', (r) => (r.parameters.seriousness_score.rules[0].threshold = '0.75')],
+    [
+      'duplicate rule ids',
+      (r) => r.parameters.seriousness_score.rules.push({ ...r.parameters.seriousness_score.rules[0] }),
+    ],
+    ['no seriousness_score parameter', (r) => delete r.parameters.seriousness_score],
+  ])('rejects %s at startup', (_label, mutate) => {
+    const rules = structuredClone(riskRules);
+    mutate(rules);
+    expect(() => validateRiskRules(rules)).toThrow(/Invalid risk rules/);
+  });
+
+  it.each([
+    ['gte', 0.75, true],
+    ['gte', 0.7, false],
+    ['lt', 0.2, true],
+    ['lt', 0.75, false],
+    ['lte', 0.75, true],
+    ['lte', 0.8, false],
+  ])('supports the %s operator in config (value %s → flag %s)', (operator, value, flagged) => {
+    const base = structuredClone(riskRules);
+    base.parameters.seriousness_score.rules[0].operator = operator;
+    const rules = validateRiskRules(base);
+    expect(evaluateParameter('seriousness_score', value, rules).flags.length > 0).toBe(flagged);
+  });
+
+  it('rejects an unknown parameter name in the engine', () => {
+    expect(() => evaluateParameter('pain_level', 5)).toThrow(/Unknown risk parameter/);
+  });
+});
+
+describe('pythonCompat numeric helpers', () => {
+  it('pyFormatFixed rounds exact ties to even, unlike toFixed', () => {
+    expect([0.125, 0.375, 0.625, 0.875].map((x) => pyFormatFixed(x, 2))).toEqual(['0.12', '0.38', '0.62', '0.88']);
+    expect((0.125).toFixed(2)).toBe('0.13');
+    expect(pyFormatFixed(-0, 2)).toBe('-0.00');
+    expect(pyFormatFixed(1e22, 2)).toBe('10000000000000000000000.00');
+  });
+
+  it('pyFloat converts like Python float()', () => {
+    expect(pyFloat(true)).toBe(1);
+    expect(pyFloat(5n)).toBe(5);
+    expect(() => pyFloat(null)).toThrow(expect.objectContaining({ pyType: 'TypeError' }));
+    expect(() => pyFloat('\x1c0.9')).toThrow(expect.objectContaining({ pyType: 'ValueError' }));
+  });
 });

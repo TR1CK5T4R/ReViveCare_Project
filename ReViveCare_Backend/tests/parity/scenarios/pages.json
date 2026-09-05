@@ -150,5 +150,119 @@
         "reason": "Django-rendered page dropped; Node answers 404"
       }
     ]
+  },
+  {
+    "name": "E15 GET /ar is a dropped Django page",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/ar",
+        "headers": {
+          "Accept": "text/html"
+        }
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "Django-rendered page dropped; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "header:location",
+        "decision": "accepted",
+        "reason": "Django-rendered page dropped; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "Django-rendered page dropped; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "cookie:csrftoken",
+        "decision": "accepted",
+        "reason": "Django-rendered page dropped; Node answers 404"
+      }
+    ]
+  },
+  {
+    "name": "E16 GET /sr is a dropped Django page",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/sr",
+        "headers": {
+          "Accept": "text/html"
+        }
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "Django-rendered page dropped; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "header:location",
+        "decision": "accepted",
+        "reason": "Django-rendered page dropped; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "Django-rendered page dropped; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "cookie:csrftoken",
+        "decision": "accepted",
+        "reason": "Django-rendered page dropped; Node answers 404"
+      }
+    ]
+  },
+  {
+    "name": "E17 GET /srtwo is a dropped Django page",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/srtwo",
+        "headers": {
+          "Accept": "text/html"
+        }
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "Django-rendered page dropped; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "header:location",
+        "decision": "accepted",
+        "reason": "Django-rendered page dropped; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "Django-rendered page dropped; Node answers 404"
+      },
+      {
+        "step": 0,
+        "kind": "cookie:csrftoken",
+        "decision": "accepted",
+        "reason": "Django-rendered page dropped; Node answers 404"
+      }
+    ]
   }
 ]

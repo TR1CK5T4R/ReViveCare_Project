@@ -264,4 +264,45 @@ describe('/doctor_info (E06): logged differences', () => {
     expect(await patients()).toEqual([]);
   });
 
+  it('a compressed body (Content-Encoding: gzip) is 400 and writes nothing; Django failed to decode it (500)', async () => {
+    const res = await request(app)
+      .post('/doctor_info')
+      .set('Content-Type', 'application/json')
+      .set('Content-Encoding', 'gzip')
+      .send(gzipSync('{"email": "e", "name": "n", "info": "i"}'));
+    expect(res.status).toBe(400);
+    expect(await patients()).toEqual([]);
+  });
+});
+
+describe('/doctor_info (E06): methods and routing', () => {
+  it.each(['get', 'put', 'patch', 'delete', 'head'])('%s → 405 Allow: POST, empty body', async (method) => {
+    const res = await request(app)[method]('/doctor_info');
+    expect(res.status).toBe(405);
+    expect(res.headers.allow).toBe('POST');
+    expect(res.headers['content-type']).toBe('text/html; charset=utf-8');
+    expect(res.text ?? '').toBe('');
+  });
+
+  it('a plain OPTIONS (not a preflight) is 405 too', async () => {
+    expect((await request(app).options('/doctor_info')).status).toBe(405);
+  });
+
+  it('/doctor_info/ (with a slash) is 404: Django never removes a slash', async () => {
+    const res = await request(app).post('/doctor_info/').send({ email: 'e', name: 'n', info: 'i' });
+    expect(res.status).toBe(404);
+    expect(await patients()).toEqual([]);
+  });
+
+  it('sets no cookies and creates no session', async () => {
+    const res = await post(JSON.stringify({ email: 'e', name: 'n', info: 'i' }));
+    expect(res.headers['set-cookie']).toBeUndefined();
+    expect(setCookies(res)).toEqual({});
+    expect((await query('SELECT count(*) AS n FROM sessions')).rows[0].n).toBe(0);
+  });
+
+  it('E04 /doc_port/ and E05 /doc_info_page/ (dropped HTML pages) are 404', async () => {
+    expect((await request(app).get('/doc_port/')).status).toBe(404);
+    expect((await request(app).get('/doc_info_page/')).status).toBe(404);
+  });
 });

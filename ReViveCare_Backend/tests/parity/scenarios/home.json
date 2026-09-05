@@ -5,9 +5,7 @@
       {
         "method": "GET",
         "path": "/csrf/",
-        "compare_headers": [
-          "vary"
-        ]
+        "compare_headers": ["vary"]
       }
     ]
   },
@@ -60,6 +58,144 @@
       {
         "method": "OPTIONS",
         "path": "/csrf/"
+      }
+    ]
+  },
+  {
+    "name": "PUT /csrf/ with cookie + X-CSRFToken + trusted Origin",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/csrf/"
+      },
+      {
+        "method": "PUT",
+        "path": "/csrf/",
+        "csrf": true,
+        "headers": {
+          "Origin": "http://localhost:5173"
+        }
+      }
+    ]
+  },
+  {
+    "name": "DELETE /csrf/ without a token is rejected",
+    "steps": [
+      {
+        "method": "DELETE",
+        "path": "/csrf/"
+      }
+    ]
+  },
+  {
+    "name": "GET / (Django landing page) is not served by Node",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/"
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "Django-rendered HTML pages are dropped; React serves its own /"
+      },
+      {
+        "step": 0,
+        "kind": "header:content-type",
+        "decision": "accepted",
+        "reason": "Django 200 HTML page vs Node 404 page"
+      },
+      {
+        "step": 0,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "Django's index.html vs Node's 404 page"
+      }
+    ]
+  },
+  {
+    "name": "POST / without a CSRF token",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/"
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "Django rejects with 403 (CSRF) before rendering index.html; Node has no / route (404)"
+      }
+    ]
+  },
+  {
+    "name": "POST / with a valid CSRF token",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/csrf/"
+      },
+      {
+        "method": "POST",
+        "path": "/",
+        "csrf": true,
+        "headers": {
+          "Origin": "http://localhost:5173"
+        }
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 1,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "Django renders index.html (200); Node has no / route (404)"
+      },
+      {
+        "step": 1,
+        "kind": "header:content-type",
+        "decision": "accepted",
+        "reason": "Django 200 HTML page vs Node 404 page"
+      },
+      {
+        "step": 1,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "Django's index.html vs Node's 404 page"
+      }
+    ]
+  },
+  {
+    "name": "plain OPTIONS / (not a preflight)",
+    "steps": [
+      {
+        "method": "OPTIONS",
+        "path": "/"
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "Django renders index.html for any method; Node has no / route (404)"
+      },
+      {
+        "step": 0,
+        "kind": "header:content-type",
+        "decision": "accepted",
+        "reason": "Django 200 HTML page vs Node 404 page"
+      },
+      {
+        "step": 0,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "Django's index.html vs Node's 404 page"
       }
     ]
   }

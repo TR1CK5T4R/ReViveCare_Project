@@ -215,4 +215,47 @@ describe('POST /patient/chatbot/send/ (E11): Django error answers (all HTTP 200)
     expect((await sessionData(sidFromCookieValue(cookie))).chat_history).toBeUndefined();
   });
 
+  it.each([
+    ['no choices', { choices: [] }],
+    ['a choice without a message', { choices: [{ index: 0 }] }],
+  ])('a Groq reply with %s → Server error, history unchanged (LangChain raised)', async (_label, completion) => {
+    const { agent, cookie } = await loggedIn();
+    groq.create.mockResolvedValueOnce(completion);
+    expect((await send(agent, { message: 'hi' })).body).toEqual({ success: false, error: 'Server error' });
+    expect((await sessionData(sidFromCookieValue(cookie))).chat_history).toBeUndefined();
+  });
+
+  it('a null content → the apology (LangChain turns it into ""), stored in history', async () => {
+    const { agent } = await loggedIn();
+    groq.create.mockResolvedValueOnce({ choices: [{ message: { role: 'assistant', content: null } }] });
+    const res = await send(agent, { message: 'hi' });
+    expect(res.body).toMatchObject({ success: true, seriousness_score: 0 });
+  });
+
+  it('a lone surrogate in the message → Server error (httpx encodes strict UTF-8)', async () => {
+    const { agent } = await loggedIn();
+    const res = await agent
+      .post('/patient/chatbot/send/')
+      .set('Content-Type', 'application/json')
+      .send('{"message": "pain \\ud83d"}');
+    expect(res.body).toEqual({ success: false, error: 'Server error' });
+    expect(groq.create).not.toHaveBeenCalled();
+  });
+
+  it('a history item with non-string content (an earlier odd model reply) → Server error', async () => {
+    const { agent, cookie } = await loggedIn();
+    modelSays('{"patient_response": {"advice": "rest"}, "seriousness_score": 0.2}');
+    expect((await send(agent, { message: 'first' })).body.success).toBe(true);
+    const { chat_history: history } = await sessionData(sidFromCookieValue(cookie));
+    expect(history.at(-1)).toEqual({ role: 'assistant', content: { advice: 'rest' } });
+    expect((await send(agent, { message: 'second' })).body).toEqual({ success: false, error: 'Server error' });
+    expect(groq.create).toHaveBeenCalledOnce();
+  });
+
+  it('a null score from the model escapes parse_response → Server error', async () => {
+    const { agent } = await loggedIn();
+    modelSays('{"patient_response": "x", "seriousness_score": null}');
+    expect((await send(agent, { message: 'hi' })).body).toEqual({ success: false, error: 'Server error' });
+  });
+
 });

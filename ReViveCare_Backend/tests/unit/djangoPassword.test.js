@@ -28,4 +28,38 @@ describe('verifyPassword against hashes made by Django', () => {
     expect(djangoVectors.filter((v) => v.django_check_password !== true).length).toBeGreaterThanOrEqual(5);
   });
 
+  it('returns false for null, undefined and non-string inputs', async () => {
+    expect(await verifyPassword('x', null)).toBe(false);
+    expect(await verifyPassword('x', undefined)).toBe(false);
+    expect(await verifyPassword(undefined, djangoVectors[0].encoded)).toBe(false);
+  });
+});
+
+describe('makePassword (hashes Django can check)', () => {
+  it('still produces exactly the fixture hashes that Django verified', async () => {
+    expect(nodeHashes.every((h) => h.django_check_password === true)).toBe(true);
+    const regenerated = await Promise.all(
+      nodeHashes.map((h) => makePassword(h.password, { salt: h.salt, iterations: h.iterations })),
+    );
+    expect(regenerated).toEqual(nodeHashes.map((h) => h.encoded));
+  });
+
+  it('uses Django defaults: pbkdf2_sha256, 1,200,000 iterations, 22-char alphanumeric salt', async () => {
+    const encoded = await makePassword('secret');
+    const [algorithm, iterations, salt, hash] = encoded.split('$');
+    expect(algorithm).toBe('pbkdf2_sha256');
+    expect(Number(iterations)).toBe(1_200_000);
+    expect(salt).toMatch(/^[A-Za-z0-9]{22}$/);
+    expect(Buffer.from(hash, 'base64')).toHaveLength(32);
+    expect(await verifyPassword('secret', encoded)).toBe(true);
+    expect(await verifyPassword('Secret', encoded)).toBe(false);
+  });
+
+  it('makes a different salt each time', () => {
+    expect(makeSalt()).not.toBe(makeSalt());
+  });
+
+  it('rejects a salt containing "$"', async () => {
+    await expect(makePassword('x', { salt: 'a$b' })).rejects.toThrow();
+  });
 });

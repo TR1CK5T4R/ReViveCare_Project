@@ -21,3 +21,35 @@ describe('system prompt (R-CHAT-01), verbatim', () => {
     },
   );
 });
+
+describe('doctor alert (R-CHAT-05): same steps, email and TwiML as send_email_alert', () => {
+  it.each(golden.alerts.map((c) => [c.case, c.input.name, c]))(
+    '%s (%s)',
+    async (_label, _name, { env, input, log }) => {
+      const steps = [];
+      // Fakes that record what Django's fakes recorded, in the same shape.
+      const sendEmail = async ({ host, port, user, pass, from, to, subject, text }) => {
+        if (host === 'fail.example') throw new Error('connection refused');
+        steps.push(['smtp.connect', host, port], ['smtp.starttls'], ['smtp.login', user, pass]);
+        steps.push(['smtp.sendmail', from, to, subject, text], ['smtp.quit']);
+      };
+      const call = async ({ accountSid, authToken, from, to, twiml }) => {
+        steps.push(['twilio.client', accountSid, authToken]);
+        if (to === '+10000000999') throw new Error('twilio rejected');
+        steps.push(['twilio.create', to, from, twiml]);
+        return { sid: 'CA123', status: 'queued' };
+      };
+      await sendDoctorAlert(
+        {
+          patient: { id: 1, name: input.name, email: input.email, info: input.info },
+          userQuery: input.query,
+          patientResponse: pyJsonLoadsText(input.response),
+          score: input.score,
+          now: new Date(2026, 2, 7, 9, 5, 3), // the fixed local time the Python fake returned
+        },
+        { settings: alertSettings(env), logger: silentLogger, sendEmail, call },
+      );
+      expect(steps).toEqual(log);
+    },
+  );
+});

@@ -96,4 +96,37 @@ describe('CORS (django-cors-headers settings)', () => {
     expect(res.headers['access-control-allow-methods']).toBeUndefined();
   });
 
+  it('lets a plain OPTIONS (no Access-Control-Request-Method) reach the view, like Django', async () => {
+    const res = await request(app).options('/patient/logout/');
+    expect(res.status).toBe(302);
+  });
+});
+
+describe('Host validation', () => {
+  it("rejects a Host outside ALLOWED_HOSTS with Django's 400 page", async () => {
+    const res = await request(app).get('/csrf/').set('Host', 'evil.test');
+    expect(res.status).toBe(400);
+    expect(res.text).toContain('<h1>Bad Request (400)</h1>');
+  });
+});
+
+describe('GET /api/health', () => {
+  afterEach(async () => {
+    await closePool();
+    initPool({ connectionString: process.env.TEST_DATABASE_URL, applicationName: 'revivecare-test' });
+  });
+
+  it('reports ok when the database answers', async () => {
+    const res = await request(app).get('/api/health');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'ok', db: 'ok' });
+  });
+
+  it('reports 503 when the database is unreachable', async () => {
+    await closePool();
+    initPool({ connectionString: 'postgresql://revivecare@127.0.0.1:1/nowhere', connectionTimeoutMillis: 500 });
+    const res = await request(app).get('/api/health');
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ status: 'error', db: 'error' });
+  });
 });

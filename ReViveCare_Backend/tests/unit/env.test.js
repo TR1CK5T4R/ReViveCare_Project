@@ -61,4 +61,24 @@ describe('loadConfig', () => {
     ]);
   });
 
+  it('makes the session cookie Secure by default only in production', () => {
+    expect(loadConfig({ ...minimal, NODE_ENV: 'production' }).session.cookieSecure).toBe(true);
+    expect(
+      loadConfig({ ...minimal, NODE_ENV: 'production', SESSION_COOKIE_SECURE: 'false' }).session.cookieSecure,
+    ).toBe(false);
+  });
+
+  it('parses TRUST_PROXY as boolean, hop count or address list', () => {
+    expect(loadConfig(minimal).trustProxy).toBe(false);
+    expect(loadConfig({ ...minimal, TRUST_PROXY: 'true' }).trustProxy).toBe(true);
+    expect(loadConfig({ ...minimal, TRUST_PROXY: '1' }).trustProxy).toBe(1);
+    expect(loadConfig({ ...minimal, TRUST_PROXY: 'loopback' }).trustProxy).toBe('loopback');
+  });
+
+  it('treats empty strings as unset and returns a deeply frozen object', () => {
+    const config = loadConfig({ ...minimal, PORT: '' });
+    expect(config.port).toBe(3000);
+    expect(Object.isFrozen(config)).toBe(true);
+    expect(Object.isFrozen(config.session)).toBe(true);
+  });
 });

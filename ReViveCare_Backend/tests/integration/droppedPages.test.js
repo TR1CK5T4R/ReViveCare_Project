@@ -31,4 +31,7 @@ describe('dropped Django pages', () => {
     expect(setCookies(res)).toEqual({});
   });
 
+  it('/admin (no slash) is 404 too: there is no /admin/ route for APPEND_SLASH to redirect to', async () => {
+    expect((await request(app).get('/admin')).status).toBe(404);
+  });
 });

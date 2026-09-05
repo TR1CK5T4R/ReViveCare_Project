@@ -104,4 +104,59 @@ describe('validate', () => {
     expect(Object.keys(res.body)).toEqual(['email']);
   });
 
+  it('lets the route reproduce its own Django failure response', async () => {
+    const onInvalid = (error, req, res) => res.status(200).json({ success: false, error: 'Server error' });
+    const app = appWith(express.json(), validate(schema, { onInvalid }), (req, res) => res.end());
+    const res = await request(app).post('/').send({ email: 5 });
+    expect(res.body).toEqual({ success: false, error: 'Server error' });
+  });
+});
+
+describe('auth guard', () => {
+  const guarded = (session) =>
+    appWith(
+      (req, res, next) => {
+        req.session = session;
+        next();
+      },
+      requirePatient((req, res) => res.status(401).json({ error: 'Not authenticated' }), 'sessionid'),
+      (req, res) => res.json({ id: sessionPatientId(req) }),
+    );
+
+  it('passes when the session has a patient_id', async () => {
+    expect((await request(guarded({ patient_id: 7 })).get('/')).body).toEqual({ id: 7 });
+  });
+
+  it.each([[undefined], [{}], [{ patient_id: null }], [{ patient_id: 0 }]])(
+    'uses the endpoint response when there is no truthy patient_id (%j)',
+    async (session) => {
+      const res = await request(guarded(session)).get('/');
+      expect(res.status).toBe(401);
+    },
+  );
+});
+
+describe('allowedHosts (Django ALLOWED_HOSTS)', () => {
+  const app = appWith(allowedHosts(['localhost', '127.0.0.1', '.example.test']), (req, res) => res.end('ok'));
+
+  it.each([
+    'localhost',
+    'localhost:3000',
+    '127.0.0.1:8000',
+    'LOCALHOST',
+    'example.test',
+    'api.example.test',
+    'localhost.',
+  ])('allows %s', async (host) => {
+    expect((await request(app).get('/').set('Host', host)).status).toBe(200);
+  });
+
+  it.each(['evil.test', 'localhost.evil.test', 'example.test.evil', 'bad host', 'local_host'])(
+    'rejects %s with 400',
+    async (host) => {
+      const res = await request(app).get('/').set('Host', host);
+      expect(res.status).toBe(400);
+      expect(res.text).toContain('<h1>Bad Request (400)</h1>');
+    },
+  );
 });

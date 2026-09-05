@@ -20,4 +20,18 @@ describe('POST /login/ rate limit', () => {
     expect(blocked.headers['ratelimit-policy']).toBeDefined();
   });
 
+  it('does not count successful logins', async () => {
+    await createPatient({ email: 'asha@example.test' });
+    const { app } = makeApp({ LOGIN_RATE_LIMIT_MAX: '2' });
+    for (let i = 0; i < 5; i += 1)
+      expect((await attempt(app, 'asha@example.test')).headers.location).toBe('/patient/dashboard/');
+    expect((await attempt(app, 'nobody@example.test')).status).toBe(302);
+  });
+
+  it('only limits /login/', async () => {
+    const { app } = makeApp({ LOGIN_RATE_LIMIT_MAX: '1' });
+    await attempt(app, 'nobody@example.test');
+    expect((await attempt(app, 'nobody@example.test')).status).toBe(429);
+    expect((await request(app).get('/csrf/')).status).toBe(200);
+  });
 });

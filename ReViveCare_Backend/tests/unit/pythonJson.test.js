@@ -28,3 +28,44 @@ describe('doctor_info body → stored strings (R-DOC-01, golden)', () => {
     },
   );
 });
+
+describe('pyFloatRepr (Python repr(float))', () => {
+  it('matches Python for every golden float', () => {
+    const mismatches = [];
+    for (const [hex, repr] of golden.float_repr) {
+      const x = Buffer.from(hex, 'hex').readDoubleBE(0);
+      if (pyFloatRepr(x) !== repr) mismatches.push([hex, repr, pyFloatRepr(x)]);
+    }
+    expect(mismatches).toEqual([]);
+  });
+
+  it('writes NaN as nan', () => {
+    expect(pyFloatRepr(NaN)).toBe('nan');
+  });
+});
+
+// Code points that are unassigned (Cn, so non-printable) in Python 3.12's
+// Unicode 15.0 but assigned and printable in Node's newer tables. Pinned so a
+// Node upgrade that changes the list fails loudly. Accepted difference:
+// it only shows in str() of a nested value containing one of these characters.
+function nonPrintableInPython(ranges) {
+  const set = new Set();
+  for (const [from, to] of ranges) for (let c = from; c <= to; c += 1) set.add(c);
+  return set;
+}
+
+describe('pyStrRepr printable test (str.isprintable)', () => {
+  it('escapes exactly the code points Python escapes, apart from Unicode-version differences', () => {
+    const python = nonPrintableInPython(golden.nonprintable_ranges);
+    const differ = [];
+    for (let c = 0x7f; c < 0x110000; c += 1) {
+      const ch = c >= 0xd800 && c <= 0xdfff ? String.fromCharCode(c) : String.fromCodePoint(c);
+      const escaped = pyStrRepr(ch) !== `'${ch}'`;
+      if (escaped !== python.has(c)) differ.push(c);
+    }
+    // All of them go one way: assigned in Unicode 15.1-17.0 (Node 22), unassigned
+    // (so escaped) in Python 3.12's Unicode 15.0. 10,615 code points in 90 ranges.
+    expect(differ.every((c) => python.has(c))).toBe(true);
+    expect(differ.length).toBe(10615);
+  });
+});

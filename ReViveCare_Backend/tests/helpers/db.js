@@ -31,3 +31,9 @@ export async function createPatient({ name, email, info = 'Knee replacement. Tes
     return { id: patients[0].id, userId: users[0].id, ...values };
   });
 }
+
+/** The stored session data for an express-session id, or null. */
+export async function sessionData(sid) {
+  const { rows } = await query('SELECT sess FROM sessions WHERE sid = $1', [sid]);
+  return rows[0]?.sess ?? null;
+}

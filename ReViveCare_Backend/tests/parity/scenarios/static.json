@@ -5,34 +5,22 @@
       {
         "method": "GET",
         "path": "/static/Patients/videos/bc.mp4",
-        "compare_headers": [
-          "content-length",
-          "last-modified"
-        ]
+        "compare_headers": ["content-length", "last-modified"]
       },
       {
         "method": "GET",
         "path": "/static/Patients/videos/sl.mp4",
-        "compare_headers": [
-          "content-length",
-          "last-modified"
-        ]
+        "compare_headers": ["content-length", "last-modified"]
       },
       {
         "method": "GET",
         "path": "/static/Patients/videos/jj.mp4",
-        "compare_headers": [
-          "content-length",
-          "last-modified"
-        ]
+        "compare_headers": ["content-length", "last-modified"]
       },
       {
         "method": "GET",
         "path": "/static/Patients/videos/ar.mp4",
-        "compare_headers": [
-          "content-length",
-          "last-modified"
-        ]
+        "compare_headers": ["content-length", "last-modified"]
       }
     ]
   },
@@ -42,10 +30,7 @@
       {
         "method": "HEAD",
         "path": "/static/Patients/videos/bc.mp4",
-        "compare_headers": [
-          "content-length",
-          "last-modified"
-        ]
+        "compare_headers": ["content-length", "last-modified"]
       }
     ]
   },
@@ -55,9 +40,7 @@
       {
         "method": "GET",
         "path": "/static/Patients/videos/b%63.mp4",
-        "compare_headers": [
-          "content-length"
-        ]
+        "compare_headers": ["content-length"]
       }
     ]
   },
@@ -70,6 +53,144 @@
         "headers": {
           "If-Modified-Since": "Fri, 01 Jan 2100 00:00:00 GMT"
         }
+      }
+    ]
+  },
+  {
+    "name": "missing files, directories and traversal are 404",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/static/Patients/videos/missing.mp4"
+      },
+      {
+        "method": "GET",
+        "path": "/static/Patients/videos/"
+      },
+      {
+        "method": "GET",
+        "path": "/static/Patients/videos"
+      },
+      {
+        "method": "GET",
+        "path": "/static/"
+      },
+      {
+        "method": "GET",
+        "path": "/static/Patients/videos/../videos/missing.mp4"
+      }
+    ]
+  },
+  {
+    "name": "path traversal out of the static folder",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/static/Patients/videos/%2e%2e/%2e%2e/%2e%2e/manage.py"
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "Django's DEBUG static view raises SuspiciousFileOperation (500); WhiteNoise and Node never look outside their file table (404)"
+      },
+      {
+        "step": 0,
+        "kind": "header:content-type",
+        "decision": "accepted",
+        "reason": "the dev server's plain-text crash message vs the 404 page"
+      },
+      {
+        "step": 0,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "\"A server error occurred.\" (wsgiref) vs the 404 page"
+      }
+    ]
+  },
+  {
+    "name": "Range request (how <video> seeks)",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/static/Patients/videos/bc.mp4",
+        "headers": {
+          "Range": "bytes=0-99"
+        }
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "Django's DEBUG static view ignores Range (200, whole file); production WhiteNoise and Node answer 206"
+      },
+      {
+        "step": 0,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "whole file vs the requested 100 bytes"
+      }
+    ]
+  },
+  {
+    "name": "POST to a video",
+    "steps": [
+      {
+        "method": "POST",
+        "path": "/static/Patients/videos/bc.mp4"
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "Django's DEBUG static view serves any method (200); production WhiteNoise and Node answer 405 Allow: GET, HEAD"
+      },
+      {
+        "step": 0,
+        "kind": "header:content-type",
+        "decision": "accepted",
+        "reason": "WhiteNoise's 405 has no Content-Type"
+      },
+      {
+        "step": 0,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "file vs empty 405 body"
+      }
+    ]
+  },
+  {
+    "name": "wrong letter case in a static path",
+    "steps": [
+      {
+        "method": "GET",
+        "path": "/static/patients/videos/BC.mp4"
+      }
+    ],
+    "expected_differences": [
+      {
+        "step": 0,
+        "kind": "status",
+        "decision": "accepted",
+        "reason": "Django's DEBUG static view asks the disk, and macOS disks are case-insensitive (200); WhiteNoise and Node match paths exactly (404), as Django did on Linux in production"
+      },
+      {
+        "step": 0,
+        "kind": "header:content-type",
+        "decision": "accepted",
+        "reason": "video/mp4 vs the 404 page"
+      },
+      {
+        "step": 0,
+        "kind": "body",
+        "decision": "accepted",
+        "reason": "file vs the 404 page"
       }
     ]
   }
