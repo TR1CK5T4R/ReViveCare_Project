@@ -105,3 +105,14 @@ function routeTable(deps) {
     { method: 'get', path: '/api/health', handlers: [health], note: 'health' },
   ];
 }
+
+/**
+ * @param {object} deps controllers and per-route middleware
+ * @returns {{ router: import('express').Router, routePaths: string[] }}
+ */
+export function createRouter(deps) {
+  const router = express.Router({ strict: true, caseSensitive: true });
+  const table = routeTable(deps);
+  for (const { method, path, handlers } of table) router[method](path, ...handlers);
+  return { router, routePaths: table.map((r) => r.path) };
+}

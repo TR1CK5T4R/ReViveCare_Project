@@ -64,3 +64,33 @@ export function validateRiskRules(rules) {
   }
   return deepFreeze(structuredClone(result.data));
 }
+
+export const riskRules = validateRiskRules({
+  // Django parity: Patients/views.py:parse_response (:223) parsed.get("patient_response", "")
+  responseKey: 'patient_response',
+  responseWhenMissing: '',
+  // Django parity: Patients/views.py:parse_response (:230, :234), when the reply has no
+  // JSON object, the JSON is invalid, or the score string isn't a number.
+  fallback: {
+    patientResponse:
+      "I apologize, but I'm having trouble processing your request. Please try rephrasing your question.",
+    seriousnessScore: 0.0,
+  },
+  parameters: {
+    seriousness_score: {
+      description: "The LLM's rating of how serious the patient's message is (prompt: views.py:49-100).",
+      jsonKey: 'seriousness_score', // views.py:224
+      whenMissing: 0.0, // views.py:224 parsed.get("seriousness_score", 0.0)
+      clamp: { min: 0.0, max: 1.0 }, // views.py:227 max(0.0, min(1.0, score))
+      rules: [
+        {
+          id: 'R-CHAT-04',
+          operator: 'gt', // strictly greater: 0.75 itself does not alert
+          threshold: 0.75, // views.py:399 if seriousness_score > 0.75
+          flag: 'alert_doctor', // views.py:400 send_email_alert(...) (email, then Twilio call)
+          description: 'Notify the doctor (email, then phone call)',
+        },
+      ],
+    },
+  },
+});

@@ -19,3 +19,35 @@ import { sessionPatientId } from '../middleware/auth.js';
 export function isJsonMode(req) {
   return req.get('Content-Type') === 'application/json' || (req.get('Accept') ?? '').includes('application/json');
 }
+
+export function createPatientController() {
+  return {
+    /**
+     * No patient_id in the session. Used as requirePatient's response (routes/index.js).
+     * Django parity: Patients/views.py:patient_dashboard (`if not patient_id:`)
+     */
+    dashboardNotAuthenticated(req, res) {
+      if (isJsonMode(req)) return sendJson(res, 401, { error: 'Not authenticated' });
+      // HTML mode: Django also queued a messages.error for the dropped templates.
+      sendRedirect(res, '/login/');
+    },
+
+    /** Django parity: Patients/views.py:patient_dashboard (logged-in branch) */
+    async dashboard(req, res) {
+      const patient = await getDashboardPatient(sessionPatientId(req));
+      if (!patient) {
+        // The row was deleted after login. Django keeps the session as it is.
+        if (isJsonMode(req)) return sendJson(res, 404, { error: 'Patient not found' });
+        return sendRedirect(res, '/login/');
+      }
+      if (isJsonMode(req)) {
+        // Key order as in Django's dict: id, name, email, info.
+        return sendJson(res, 200, {
+          patient: { id: patient.id, name: patient.name, email: patient.email, info: patient.info },
+        });
+      }
+      // Django rendered patient_dashboard.html here; the template is dropped.
+      sendHtml(res, 404, NOT_FOUND_PAGE);
+    },
+  };
+}

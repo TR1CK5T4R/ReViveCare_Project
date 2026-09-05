@@ -12,5 +12,19 @@ export function createExerciseController() {
       sendJson(res, 401, { error: 'Not authenticated' });
     },
 
+    /** validate()'s onInvalid, and the handler for a body that isn't JSON. */
+    invalid(error, req, res) {
+      sendJson(res, 400, {
+        error: 'Invalid request',
+        fields: error ? fieldErrors(error) : { body: 'must be a JSON object' },
+      });
+    },
+
+    async saveSession(req, res) {
+      const saved = await recordExerciseSet(sessionPatientId(req), req.validated.body);
+      if (!saved) return sendJson(res, 404, { error: 'Patient not found' });
+      req.log.info({ patientId: sessionPatientId(req), exerciseSessionId: saved.id }, 'exercise set saved');
+      sendJson(res, 201, { success: true, id: saved.id, completed_reps: saved.completed_reps });
+    },
   };
 }

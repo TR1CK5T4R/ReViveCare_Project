@@ -37,5 +37,17 @@ export function createAuthController({ sessionCookieName }) {
       sendRedirect(res, LOGIN_SUCCESS_LOCATION);
     },
 
+    /** Django parity: Patients/views.py:patient_logout (session.flush(), any method) */
+    async logout(req, res) {
+      const patientId = req.session.patient_id;
+      const hadCookie = req.cookies[sessionCookieName] !== undefined;
+      await destroySession(req);
+      res.vary('Cookie'); // flush() accesses the session (Django SessionMiddleware)
+      // Django's SessionMiddleware deletes the cookie when the request carried
+      // one and the session is now empty.
+      if (hadCookie) res.clearCookie(sessionCookieName, { path: '/', sameSite: 'lax' });
+      req.log.info({ patientId }, 'patient logged out');
+      sendRedirect(res, '/');
+    },
   };
 }

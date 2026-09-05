@@ -17,3 +17,22 @@ export function sessionPatientId(req) {
   const id = req.session?.patient_id;
   return id ? id : null;
 }
+
+/**
+ * Let the request through only if the session has a patient_id.
+ * Either way the session was read, so the response varies by cookie (Django's
+ * SessionMiddleware adds `Vary: Cookie`). When there's no patient, a dead
+ * session cookie is deleted first, as Django does.
+ *
+ * @param {import('express').RequestHandler} onUnauthenticated the endpoint's Django response
+ * @param {string} sessionCookieName
+ * @returns {import('express').RequestHandler}
+ */
+export function requirePatient(onUnauthenticated, sessionCookieName) {
+  return (req, res, next) => {
+    res.vary('Cookie');
+    if (sessionPatientId(req) !== null) return next();
+    clearDeadSessionCookie(req, res, sessionCookieName);
+    onUnauthenticated(req, res, next);
+  };
+}
