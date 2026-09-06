@@ -258,4 +258,48 @@ describe('POST /patient/chatbot/send/ (E11): Django error answers (all HTTP 200)
     expect((await send(agent, { message: 'hi' })).body).toEqual({ success: false, error: 'Server error' });
   });
 
+  it('no GROQ_API_KEY → Server error', async () => {
+    ({ app } = makeApp({ ...ALERT_ENV }));
+    const { agent } = await loggedIn();
+    expect((await send(agent, { message: 'hi' })).body.error).toBe('Server error');
+    expect(groq.create).not.toHaveBeenCalled();
+  });
+
+  it('a body over 2.5 MB → Server error (Django raised inside its try), not 400', async () => {
+    const { agent } = await loggedIn();
+    const res = await send(agent, { message: 'x'.repeat(2_621_440) });
+    expect(res.status).toBe(200);
+    expect(res.body.error).toBe('Server error');
+  });
+
+  it('rate-limits a patient to CHAT_RATE_LIMIT_MAX messages per window, across sessions', async () => {
+    ({ app } = makeApp({ GROQ_API_KEY: 'test-key', CHAT_RATE_LIMIT_MAX: '2' }));
+    const first = await loggedIn();
+    for (let i = 0; i < 2; i += 1) {
+      modelSays(reply('ok', 0.1));
+      expect((await send(first.agent, { message: `m${i}` })).body.success).toBe(true);
+    }
+    expect((await send(first.agent, { message: 'third' })).text).toBe(
+      '{"success": false, "error": "Too many messages"}',
+    );
+    // A fresh login is a new session but the same patient: still limited.
+    const second = await loggedIn();
+    expect((await send(second.agent, { message: 'again' })).body.error).toBe('Too many messages');
+    // Another patient isn't affected.
+    await createPatient({ email: 'ravi@example.test' });
+    const other = await loggedIn('ravi@example.test');
+    modelSays(reply('ok', 0.1));
+    expect((await send(other.agent, { message: 'hi' })).body.success).toBe(true);
+    expect(groq.create).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(['get', 'put', 'delete'])('%s → 405 Allow: POST', async (method) => {
+    const res = await request(app)[method]('/patient/chatbot/send/');
+    expect(res.status).toBe(405);
+    expect(res.headers.allow).toBe('POST');
+  });
+
+  it('E10 /patient/chatbot/ (dropped HTML page) is 404', async () => {
+    expect((await request(app).get('/patient/chatbot/')).status).toBe(404);
+  });
 });
