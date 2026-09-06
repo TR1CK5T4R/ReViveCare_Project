@@ -15,3 +15,24 @@ coverage/
 
 # OS / editor
 .DS_Store
+
+# Old Django backend (kept locally as the parity reference only)
+legacy_django_backend/
+
+# Local parity and benchmark scratch data
+.parity-work/
+ReViveCare_Backend/bench/raw/
+
+# Generated reports and extra notes (only the main READMEs are committed)
+ReViveCare_Backend/tests/parity/report.md
+ReViveCare_Backend/tests/parity/fixtures/README.md
+ReViveCare_Backend/bench/REPORT.md
+DEBUG_LOGIN.md
+DJANGO_CHANGES_REQUIRED.md
+plan.readme.md
+
+# Assistant tooling
+revivecare-claude-kit/
+.claude/
+CLAUDE.md
+**/CLAUDE.md
