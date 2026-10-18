@@ -1,4 +1,4 @@
-# ReviveCare frontend
+# ReviveCare Frontend
 
 The React app of ReviveCare, a post-surgery rehabilitation helper. Doctors add patients with their medical notes; patients log in with their email, chat with an AI assistant that knows those notes (English or Hindi), and do camera-tracked exercises with a live rep counter. The API is the Node.js backend in `../ReViveCare_Backend/`.
 
