@@ -1,4 +1,3 @@
-import React from 'react';
 import { Heart, Phone, Mail, MapPin } from 'lucide-react';
 
 export const PageLayout = ({ children, showFooter = true }) => {

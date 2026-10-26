@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send, AlertCircle, Bot, User, Globe, ChevronDown, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, PageLayout } from '../components';
+import { Card, PageLayout } from '../components';
 import djangoAPI from '../services/djangoApi';
 
 // Language dropdown component

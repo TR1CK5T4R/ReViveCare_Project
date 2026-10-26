@@ -1,6 +1,5 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Users, Bell, TrendingUp, FileText, UserPlus, ClipboardList, Calendar, Activity, Pill, Phone, Video, MessageSquare } from 'lucide-react';
+import { Users, Bell, TrendingUp, FileText, UserPlus, ClipboardList, Calendar, Activity, Pill, Phone, Video } from 'lucide-react';
 import { Navbar, WelcomeSection, StatCard, ActionCard, Card, Button } from '../components';
 
 export default function DoctorDashboard() {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button } from './Button.jsx';
 
 export const InfoCard = ({

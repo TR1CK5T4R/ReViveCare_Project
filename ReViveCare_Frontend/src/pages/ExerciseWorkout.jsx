@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, RotateCcw, CheckCircle2, Camera, AlertCircle, Dumbbell, Activity, Zap, Target, Settings, Timer, X } from 'lucide-react';
+import { ArrowLeft, Play, RotateCcw, CheckCircle2, Camera, AlertCircle, Dumbbell, Activity, Zap, Target, Settings, X } from 'lucide-react';
 import { Card, Button, PageLayout } from '../components';
 import djangoAPI from '../services/djangoApi';
 import { usePoseWorkout } from '../hooks/usePoseWorkout';
@@ -233,7 +233,6 @@ export default function ExerciseWorkout() {
 
     const [workoutStarted, setWorkoutStarted] = useState(false);
     const [error, setError] = useState(null);
-    const [cameraPermission, setCameraPermission] = useState(null);
     // Camera, pose model and rep counting run in this tab.
     const pose = usePoseWorkout(workoutStarted && exercise?.hasCamera);
     const workoutStatus = pose.status;
@@ -521,7 +520,6 @@ export default function ExerciseWorkout() {
                                                 className="w-full shadow-lg shadow-emerald-500/20"
                                                 icon={Play}
                                                 onClick={handleStartWorkout}
-                                                disabled={exercise.hasCamera && cameraPermission === 'denied'}
                                             >
                                                 {currentSet === 1 ? 'Start Workout' : `Start Set ${currentSet}`}
                                             </Button>

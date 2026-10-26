@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import djangoAPI from '../services/djangoApi';
 
 const AuthContext = createContext(null);
 
+// The hook lives next to its provider; Fast Refresh just reloads this file in full.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (!context) {
@@ -23,13 +25,10 @@ export const AuthProvider = ({ children }) => {
 
     const checkAuthStatus = async () => {
         try {
-            console.log('[AuthContext] Fetching dashboard data...');
             setLoading(true);
             const response = await djangoAPI.patient.getDashboard();
-            console.log('[AuthContext] Dashboard API response:', response);
 
             if (response && response.patient) {
-                console.log('[AuthContext] Found patient data:', response.patient);
                 setUser({
                     id: response.patient.id,
                     name: response.patient.name,
@@ -37,7 +36,6 @@ export const AuthProvider = ({ children }) => {
                     role: 'patient'
                 });
             } else {
-                console.log('[AuthContext] No patient data in response');
                 setUser(null);
             }
         } catch (err) {
@@ -51,18 +49,14 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email) => {
         try {
-            console.log('[AuthContext] Starting login for:', email);
             setLoading(true);
             setError(null);
 
             // Django uses session-based auth, login returns redirect or error
-            const response = await djangoAPI.patient.login(email);
-            console.log('[AuthContext] Login API response:', response);
+            await djangoAPI.patient.login(email);
 
             // After successful login, fetch user data
-            console.log('[AuthContext] Checking auth status...');
             await checkAuthStatus();
-            console.log('[AuthContext] User after checkAuthStatus:', user);
 
             return { success: true };
         } catch (err) {

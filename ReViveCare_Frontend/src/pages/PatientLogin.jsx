@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, LogIn, Heart, AlertCircle, Lock } from 'lucide-react';
 import { Card, Button, FormInput } from '../components';
@@ -34,12 +34,9 @@ export default function PatientLogin() {
         setError('');
 
         try {
-            console.log('Attempting login with email:', email);
             const result = await login(email);
-            console.log('Login result:', result);
 
             if (result.success) {
-                console.log('Login successful, redirecting to dashboard');
                 navigate('/patient/dashboard');
             } else {
                 setError(result.error || 'Login failed. Please check your email or contact your doctor.');

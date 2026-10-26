@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserPlus, User, Mail, FileText, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Card, Button, FormInput, FormTextarea, FormHeader, Navbar } from '../components';

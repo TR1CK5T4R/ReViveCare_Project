@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserCircle2, Stethoscope, Shield, Clock, Heart, TrendingUp, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Button, PageLayout, FeatureCard } from '../components';

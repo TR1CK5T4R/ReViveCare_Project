@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Heart, Dumbbell, MessageSquare, X, Camera } from 'lucide-react';
 import { InfoCard, WelcomeSection } from '../components';
 
@@ -39,7 +39,6 @@ export default function PatientDashboardSimple() {
     };
 
     const handleStartChat = () => {
-        console.log('Start Chat clicked');
     };
 
     return (

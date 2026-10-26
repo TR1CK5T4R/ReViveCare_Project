@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dumbbell, ArrowLeft, Activity, Zap, Target } from 'lucide-react';
 import { Card } from '../components';
@@ -10,7 +9,6 @@ const exercises = [
         description: 'Strengthen your biceps with controlled arm movements',
         icon: Dumbbell,
         color: 'emerald',
-        endpoint: '/bc',
         targetReps: 12,
         hasCamera: true
     },
@@ -20,7 +18,6 @@ const exercises = [
         description: 'Improve shoulder mobility and strength',
         icon: Activity,
         color: 'blue',
-        endpoint: '/sr',
         targetReps: 10,
         hasCamera: true // This one has video tracking
     },
@@ -30,7 +27,6 @@ const exercises = [
         description: 'Full-body cardio warmup exercise',
         icon: Zap,
         color: 'purple',
-        endpoint: '/jj',
         targetReps: 20,
         hasCamera: true
     },
@@ -40,7 +36,6 @@ const exercises = [
         description: 'Build shoulder endurance and stability',
         icon: Target,
         color: 'orange',
-        endpoint: '/ar',
         targetReps: 15,
         hasCamera: true
     }
@@ -56,7 +51,6 @@ export default function ExerciseSelection() {
             name: exercise.name,
             description: exercise.description,
             color: exercise.color,
-            endpoint: exercise.endpoint,
             targetReps: exercise.targetReps,
             hasCamera: exercise.hasCamera
         };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { UserPlus, User, Mail, FileText, CheckCircle2 } from 'lucide-react';
 import { Card, Button, FormInput, FormTextarea, FormHeader } from '../components';
 
@@ -57,8 +57,6 @@ export default function AddPatientFormStandalone() {
             return;
         }
 
-        // Simulate form submission
-        console.log('Form submitted:', formData);
         setIsSubmitted(true);
 
         // Reset form after 2 seconds

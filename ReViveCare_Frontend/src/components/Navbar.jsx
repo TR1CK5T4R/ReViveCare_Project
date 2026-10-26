@@ -1,4 +1,3 @@
-import React from 'react';
 import { Heart, Bell } from 'lucide-react';
 
 export const Navbar = ({

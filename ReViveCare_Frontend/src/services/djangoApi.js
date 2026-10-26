@@ -82,7 +82,6 @@ export const patientAPI = {
         await fetchCSRFToken();
 
         const csrfToken = getCSRFToken();
-        console.log('CSRF Token:', csrfToken);
 
         // Send as form data instead of JSON
         const formData = new URLSearchParams();
@@ -101,15 +100,12 @@ export const patientAPI = {
 
         try {
             const response = await fetch(`${API_BASE_URL}/login/`, config);
-            console.log('Login response status:', response.status);
-            console.log('Login response type:', response.type);
 
             // Django returns 302 redirect on success, or renders error page
             // Status 0 means opaqueredirect (redirect blocked by CORS but request succeeded)
             // Status 200 could be the form page or error
             // Status 302 is redirect (success)
             if (response.status === 0 || response.status === 302 || response.type === 'opaqueredirect') {
-                console.log('Login successful (redirect detected)');
                 return { success: true };
             }
 
@@ -153,16 +149,6 @@ export const patientAPI = {
 // ==================== Doctor API ====================
 
 export const doctorAPI = {
-    // Get doctor portal/dashboard
-    getPortal: async () => {
-        return apiCall('/doc_port/');
-    },
-
-    // Get doctor info page
-    getInfoPage: async () => {
-        return apiCall('/doc_info_page/');
-    },
-
     // Submit patient information from doctor
     submitPatientInfo: async (patientData) => {
         return apiCall('/doctor_info', 'POST', patientData);
@@ -172,11 +158,6 @@ export const doctorAPI = {
 // ==================== Chatbot API ====================
 
 export const chatbotAPI = {
-    // Get chatbot page (requires patient login)
-    getChatbotPage: async () => {
-        return apiCall('/patient/chatbot/');
-    },
-
     // Send message to chatbot with optional language (hindi/english)
     sendMessage: async (message, language = 'english') => {
         return apiCall('/patient/chatbot/send/', 'POST', { message, language });
@@ -186,18 +167,6 @@ export const chatbotAPI = {
 // ==================== Exercise API ====================
 
 export const exerciseAPI = {
-    // Get exercise page
-    getExercises: async () => {
-        return apiCall('/exercise');
-    },
-
-    // Get specific exercise types
-    getAR: async () => apiCall('/ar'),
-    getBC: async () => apiCall('/bc'),
-    getJJ: async () => apiCall('/jj'),
-    getSR: async () => apiCall('/sr'),
-    getSRTwo: async () => apiCall('/srtwo'),
-
     // Store one finished or abandoned set (E23). Pose tracking and rep
     // counting run in the browser (hooks/usePoseWorkout.js), replacing Django's
     // /exercise/start/, /status/, /reset/ and /video_feed/.
@@ -214,14 +183,6 @@ export const exerciseAPI = {
     },
 };
 
-// ==================== Home API ====================
-
-export const homeAPI = {
-    getHome: async () => {
-        return apiCall('/');
-    },
-};
-
 // ==================== Combined Export ====================
 
 const djangoAPI = {
@@ -229,36 +190,6 @@ const djangoAPI = {
     doctor: doctorAPI,
     chatbot: chatbotAPI,
     exercise: exerciseAPI,
-    home: homeAPI,
 };
 
 export default djangoAPI;
-
-// ==================== Utility Functions ====================
-
-// Check if user is authenticated (has active session)
-export const isAuthenticated = async () => {
-    try {
-        const response = await patientAPI.getDashboard();
-        return !!response;
-    } catch (error) {
-        return false;
-    }
-};
-
-// Handle API errors with user-friendly messages
-export const handleAPIError = (error) => {
-    if (error.message.includes('401') || error.message.includes('403')) {
-        return 'Please log in to access this page.';
-    }
-
-    if (error.message.includes('404')) {
-        return 'The requested resource was not found.';
-    }
-
-    if (error.message.includes('500')) {
-        return 'Server error. Please try again later.';
-    }
-
-    return error.message || 'An unexpected error occurred.';
-};

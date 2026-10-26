@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Users, FileText, Clock, Activity, Heart, Pill, AlertCircle, Bell, Search, Plus, ChevronRight, TrendingUp } from 'lucide-react';
 import { Card, StatCard, Button } from '../components';
 
 export default function MedicalDashboard() {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('overview');
 
     const stats = [
         {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Dumbbell, MessageSquare, Calendar, TrendingUp, Clock, CheckCircle2, Target, Activity } from 'lucide-react';
 import { Card, InfoCard, WelcomeSection } from '../components';
@@ -8,14 +7,7 @@ export default function PatientDashboard() {
     const navigate = useNavigate();
     const { patient, loading, error } = usePatientData();
 
-    const handleStartExercises = () => {
-        console.log('Start Exercises clicked');
-        // TODO: Add navigation when exercises page is ready
-        // navigate('/patient/exercises');
-    };
-
     const handleStartChat = () => {
-        console.log('Start Chat clicked');
         navigate('/patient/chat');
     };
 
