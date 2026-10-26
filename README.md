@@ -32,7 +32,7 @@ Each folder's README has its setup steps. In short: start PostgreSQL, then `npm 
 
 ## The story behind the backend
 
-I first built the backend in Django. To learn Node.js and PostgreSQL properly, I rewrote it as a Node.js + Express API with raw SQL, keeping every endpoint and rule the frontend relies on. To prove nothing changed, I wrote a parity suite that sends the same 116 request scenarios to both backends and compares the answers, alongside 917 unit and integration tests.
+I first built the backend in Django. To learn Node.js and PostgreSQL properly, I rewrote it as a Node.js + Express API with raw SQL, keeping every endpoint and rule the frontend relies on. To prove nothing changed, I wrote a parity suite that sends the same 116 request scenarios to both backends and compares the answers, alongside 916 unit and integration tests.
 
 ## Author
 

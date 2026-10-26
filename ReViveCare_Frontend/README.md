@@ -30,7 +30,7 @@ Patient login is **email only** in this version: the password field has to be fi
 
 ## Tech stack
 
-React 19, Vite, React Router, Tailwind CSS, lucide-react icons, Recharts, MediaPipe Tasks (`@mediapipe/tasks-vision`), Vitest.
+React 19, Vite, React Router, Tailwind CSS, lucide-react icons, MediaPipe Tasks (`@mediapipe/tasks-vision`), Vitest.
 
 ## Getting started
 
