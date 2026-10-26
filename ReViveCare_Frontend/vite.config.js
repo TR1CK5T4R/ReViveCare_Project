@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
     server: {
       // Exactly the backend routes the app calls. Everything
       // else, e.g. /doctor/add-patient on a hard refresh, is a React route served
-      // by Vite (fixed in Phase 7).
+      // by Vite.
       proxy: {
         '/csrf/': backend,
         '/login/': backend,
