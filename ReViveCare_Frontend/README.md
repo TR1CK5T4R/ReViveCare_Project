@@ -1,12 +1,24 @@
-# ReviveCare Frontend
+# ReViveCare — Frontend
 
-The React app of ReviveCare, a post-surgery rehabilitation helper. Doctors add patients with their medical notes; patients log in with their email, chat with an AI assistant that knows those notes (English or Hindi), and do camera-tracked exercises with a live rep counter. The API is the Node.js backend in `../ReViveCare_Backend/`.
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
+![MediaPipe](https://img.shields.io/badge/MediaPipe-pose_tracking-0097A7)
 
-Built with React 19, Vite, React Router, Tailwind CSS, lucide icons and MediaPipe (`@mediapipe/tasks-vision`) for pose tracking.
+The React app of **ReViveCare**, a post-surgery rehabilitation assistant I built as a personal project. Doctors add patients with their medical notes. Patients log in, chat with an AI assistant that knows those notes (English or Hindi), and do exercises tracked by their webcam with a live rep counter. The API is the Node.js backend in [`../ReViveCare_Backend`](../ReViveCare_Backend).
 
-## Demo accounts
+> **About this project.** ReViveCare is a student project, built and maintained by me, [Tushar Singla](#author), a final-year B.Tech IT student. It isn't a commercial product, and it isn't meant for real patients or real medical data.
 
-Open the app, choose **Patient**, and log in with one of these:
+## Features
+
+- **AI recovery assistant:** a chat that answers in English or Hindi based on the patient's own medical notes, and shows how serious the message looked (the doctor is alerted automatically for serious ones).
+- **Camera-tracked exercises:** pose detection runs entirely in the browser with MediaPipe; the app counts reps, grades each one (excellent / good / partial) and warns about form problems such as uneven arms, shrugging or bent elbows. Video never leaves the device.
+- **Doctor tools:** add or update a patient's details and medical notes.
+- **Patient dashboard** and exercise library with demo videos.
+
+## Try it: demo accounts
+
+Open the app, choose **Patient**, and log in with one of these accounts. They hold made-up data only:
 
 | Name                    | Email (login)                   | Password   | Medical notes (made up)              |
 | ----------------------- | ------------------------------- | ---------- | ------------------------------------ |
@@ -14,50 +26,68 @@ Open the app, choose **Patient**, and log in with one of these:
 | Demo Patient (Hip)      | `demo.hip@revivecare.test`      | `demo1234` | hip replacement, 3 weeks ago         |
 | Demo Patient (Shoulder) | `demo.shoulder@revivecare.test` | `demo1234` | rotator cuff repair, 6 weeks ago     |
 
-All three are made-up people on the reserved `.test` domain; nothing in them is real. Patient login is **email only**: the password field must be filled in, but its value isn't checked, so `demo1234` (or anything) works. The doctor pages need no login. If you add a patient there, please use made-up details too.
+Patient login is **email only** in this version: the password field has to be filled in, but its value isn't checked. The doctor pages need no login; if you add a patient there, please use made-up details. The exercise pages ask for camera access.
 
-The accounts come from the backend's `npm run db:demo`; run it once on the database the site uses.
+## Tech stack
 
-## Run it
+React 19, Vite, React Router, Tailwind CSS, lucide-react icons, Recharts, MediaPipe Tasks (`@mediapipe/tasks-vision`), Vitest.
+
+## Getting started
+
+**Requirements:** Node.js 20+ and the backend running locally (see its README).
 
 ```sh
 npm install
 npm run dev      # http://localhost:5173
 ```
 
-Start the backend first (`npm run dev` in `../ReViveCare_Backend`, port 3000). In development the Vite server forwards the API paths to it (see `vite.config.js`), so the browser only ever talks to `localhost:5173` and the session cookie works without any CORS setup. Leave `VITE_API_BASE_URL` unset; `VITE_PROXY_TARGET` changes where the proxy points (default `http://127.0.0.1:3000`). Both are described in `.env.example`.
+Start the backend first (`npm run dev` in `../ReViveCare_Backend`, port 3000). In development, Vite forwards the API calls to it (see `vite.config.js`), so the browser only talks to `localhost:5173` and the login cookie works without extra setup. Leave `VITE_API_BASE_URL` unset; `VITE_PROXY_TARGET` changes where the calls go (default `http://127.0.0.1:3000`). Both are described in `.env.example`.
 
-Other scripts: `npm run build` (production build into `dist/`), `npm run preview`, `npm run lint`, `npm test` (the exercise logic tests).
+| Command           | What it does                       |
+| ----------------- | ---------------------------------- |
+| `npm run dev`     | Development server                 |
+| `npm run build`   | Production build into `dist/`      |
+| `npm run preview` | Serve the production build locally |
+| `npm run lint`    | ESLint                             |
+| `npm test`        | Unit tests for the exercise logic  |
 
-## How it talks to the backend
+## How it works
 
-All API calls go through `src/services/djangoApi.js` (named after the backend it was first written for; the Node backend keeps the same API). It sends cookies with every request (`credentials: 'include'`) and copies the `csrftoken` cookie into an `X-CSRFToken` header.
+All backend calls go through `src/services/djangoApi.js` (named after the backend the app was first written for; the Node.js backend keeps the same API). Every request sends the session cookie and the CSRF token.
 
-| Screen                              | Route                                          | Backend calls                                                                                    |
-| ----------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Landing page                        | `/`                                            | —                                                                                                |
-| Doctor: add a patient               | `/doctor/add-patient`                          | `POST /doctor_info` `{name, email, info}`                                                        |
-| Patient login                       | `/patient/login`                               | `GET /csrf/`, then `POST /login/` (form, email only), then `GET /patient/dashboard/`             |
-| Patient dashboard                   | `/patient/dashboard`                           | `GET /patient/dashboard/` (the patient's name; the cards are placeholder data)                   |
-| Chat                                | `/patient/chat`                                | `POST /patient/chatbot/send/` `{message, language}` → reply and seriousness score                |
-| Exercises                           | `/patient/exercises` → `/patient/exercise/:id` | demo video from `/static/Patients/videos/…`; finished sets saved with `POST /exercise/sessions/` |
-| Doctor dashboard, medical dashboard | `/doctor`, `/medical-dashboard`                | — (placeholder data)                                                                             |
+| Screen                              | Route                                         | Backend calls                                                                     |
+| ----------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------- |
+| Landing page                        | `/`                                           | —                                                                                 |
+| Doctor: add a patient               | `/doctor/add-patient`                         | `POST /doctor_info`                                                               |
+| Patient login                       | `/patient/login`                              | `GET /csrf/`, `POST /login/`, then `GET /patient/dashboard/`                      |
+| Patient dashboard                   | `/patient/dashboard`                          | `GET /patient/dashboard/`                                                         |
+| Chat                                | `/patient/chat`                               | `POST /patient/chatbot/send/`                                                     |
+| Exercises                           | `/patient/exercises`, `/patient/exercise/:id` | demo videos from `/static/…`; finished sets saved with `POST /exercise/sessions/` |
+| Doctor dashboard, medical dashboard | `/doctor`, `/medical-dashboard`               | — (sample data)                                                                   |
 
-**Login state** lives in the backend's `sessionid` cookie (HttpOnly). `src/context/AuthContext.jsx` asks `GET /patient/dashboard/` on every page load: a patient in the answer means logged in, a 401 means logged out.
+- **Login state** lives in the backend's session cookie. `src/context/AuthContext.jsx` checks it on each page load by asking for the dashboard data.
+- **Exercise tracking:** `src/hooks/usePoseWorkout.js` opens the camera and runs MediaPipe's pose model on each video frame; `src/utils/exerciseLogic.js` turns the body landmarks into arm angles, reps, grades and warnings. The tracked arms are drawn over the mirrored video, and each finished set is saved to the backend. The rep logic is unit-tested against recorded movement data.
 
-**Chat** shows the assistant's reply and colours the seriousness score; the backend emails (and can phone) the doctor when the score is above 0.75.
+## Project structure
 
-**Exercise tracking** runs entirely in the browser: `src/hooks/usePoseWorkout.js` opens the camera, runs MediaPipe's pose model on each video frame, and feeds the landmarks to `src/utils/exerciseLogic.js`, which measures the arm angles, counts reps, grades each one (excellent / good / partial) and raises form warnings (uneven arms, shrugging, bent elbows). The page draws the tracked arms over the mirrored video. When a set ends or is reset, it's sent to the backend to be stored.
+| Path              | What's in it                                                   |
+| ----------------- | -------------------------------------------------------------- |
+| `src/pages/`      | One component per screen                                       |
+| `src/components/` | Shared UI pieces (cards, buttons, form fields, layout, navbar) |
+| `src/context/`    | Login state                                                    |
+| `src/hooks/`      | Data loading hooks and the camera / pose tracking hook         |
+| `src/services/`   | Every backend call                                             |
+| `src/utils/`      | Rep counting and form checks                                   |
+| `tests/`          | Unit tests and recorded movement data                          |
+| `public/`         | Static assets                                                  |
 
-## Folders
+## Deployment
 
-| Path                          | What's in it                                                                                                      |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `src/pages/`                  | One component per screen                                                                                          |
-| `src/components/`             | Shared UI pieces (cards, buttons, form fields, layout, navbar)                                                    |
-| `src/context/AuthContext.jsx` | Who is logged in                                                                                                  |
-| `src/hooks/`                  | `usePatientData`, `useDoctorData` (API calls with loading/error state), `usePoseWorkout` (camera + pose tracking) |
-| `src/services/djangoApi.js`   | Every backend call                                                                                                |
-| `src/utils/exerciseLogic.js`  | Rep counting and form checks (pure functions, unit-tested)                                                        |
-| `tests/`                      | Exercise logic tests against recorded landmark sequences                                                          |
-| `public/`                     | Static assets                                                                                                     |
+The app runs locally today. To put it online, build it with `npm run build` and serve `dist/` from the same domain as the API, with a reverse proxy sending the API paths to the backend. The backend README explains why one domain keeps the login cookie and CSRF protection working, and lists the production settings.
+
+## Author
+
+**Tushar Singla**, final-year B.Tech IT student at Maharaja Agrasen Institute of Technology, Delhi.
+
+- GitHub: [@TR1CK5T4R](https://github.com/TR1CK5T4R)
+- LinkedIn: [tushar-singla-b8aaa027b](https://www.linkedin.com/in/tushar-singla-b8aaa027b)
