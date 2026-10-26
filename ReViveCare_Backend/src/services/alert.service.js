@@ -1,7 +1,7 @@
 // The doctor alert after a serious chat message: email, then a phone call.
 // Same order and failure rules as Django, and like Django it never throws:
 // the chat response is only delayed by it.
-// Django parity: Patients/views.py:send_email_alert (R-CHAT-05)
+// Django parity: Patients/views.py:send_email_alert
 
 import { buildAlertEmail, sendAlertEmail } from '../integrations/email/alertEmail.js';
 import { emergencyTwiml, placeCall } from '../integrations/twilio/call.js';

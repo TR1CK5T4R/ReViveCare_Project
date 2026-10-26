@@ -1,4 +1,4 @@
-"""Golden data for src/utils/pythonCompat.js pyStrip / pyLower (R-AUTH-01).
+"""Golden data for src/utils/pythonCompat.js pyStrip / pyLower (login email).
 
 Login does request.POST.get('email', '').strip().lower(). Python's whitespace
 set and lower-casing differ from JS trim()/toLowerCase() in a few code points;

@@ -224,9 +224,9 @@ function makePatients(firstUserId, firstPatientId, doctors, passwordHash) {
 function applyEdgeCases(patients, doctors) {
   const [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = patients;
   p0.email = `Mixed.Case.${p0.id}@Patients.Revivecare.test`; // stored as-is, login lower-cases → can never log in
-  p1.email = ` spaced.${p1.id}@patients.revivecare.test `; // R-DOC-01 stores emails unstripped
+  p1.email = ` spaced.${p1.id}@patients.revivecare.test `; // doctor_info stores emails unstripped
   p2.email = doctors[0].email; // a patient and a doctor may share an email: UNIQUE(email, role)
-  p3.info = "Knee replacement. Notes contain $& and $1 and $$ and $' and {patient_context} and {{braces}}."; // R-CHAT-01 replace/format traps
+  p3.info = "Knee replacement. Notes contain $& and $1 and $$ and $' and {patient_context} and {{braces}}."; // prompt replace/format traps
   p4.info = 'बाएं घुटने का प्रत्यारोपण, 2026-01-10। मधुमेह है।'; // Devanagari medical text
   p5.info = `${pick(PROCEDURES)}. ${'Detailed post-operative history. '.repeat(110)}`.trim(); // > 3000 chars: max_length never enforced
   p6.info = ''; // empty but NOT NULL
@@ -282,7 +282,7 @@ function makeExerciseSessions(patients, firstId) {
         excellent_reps: excellent,
         good_reps: good,
         partial_reps: reps - good,
-        // No backend formula exists; this is the template's quality rate (R-EX-05).
+        // No backend formula exists; this is the template's quality rate.
         accuracy_score: reps > 0 ? round((good / reps) * 100, 1) : 0.0,
         notes: chance(0.1) ? pick(['Felt tired today.', 'Shoulder pain during the last reps.', 'Good session.']) : null,
       });
@@ -413,7 +413,7 @@ function makeSessions(patients) {
       [40, 0],
       [50, 2 * faker.number.int({ min: 1, max: 9 })],
       [10, 20],
-    ]); // max 20 (R-CHAT-03)
+    ]); // max 20
     const chatHistory = [];
     for (let h = 0; h < historyItems; h += 2) {
       const [question, answer] = pick(CHAT.english.low);

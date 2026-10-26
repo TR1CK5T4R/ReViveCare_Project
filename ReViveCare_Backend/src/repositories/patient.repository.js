@@ -1,5 +1,5 @@
-// SQL for patients. A patient is a `patients` row joined to its `users` row
-//; patients.id is the id Django used and the API exposes.
+// SQL for patients. A patient is a `patients` row joined to its `users` row;
+// patients.id is the id Django used and the API exposes.
 
 import { query } from '../db/pool.js';
 

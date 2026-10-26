@@ -2,7 +2,7 @@
 // ask the model with the patient's context and the session history, evaluate
 // the reply with the risk engine, alert the doctor if needed.
 // Plain function: no req/res, no SQL (the repository loads the patient).
-// Django parity: Patients/views.py:chatbot_send (R-CHAT-01..05)
+// Django parity: Patients/views.py:chatbot_send
 
 import { aiConfig } from '../config/ai.js';
 import { buildSystemPrompt } from '../integrations/groq/prompts.js';
@@ -67,14 +67,14 @@ export async function sendChatMessage(
   const reply = await complete(messages, { ...groq, logger });
   const { patientResponse, seriousnessScore, alertDoctor } = evaluatePatient({ llmReply: reply });
 
-  // R-CHAT-03: only successful turns are stored; keep the last 20 items.
+  // Only successful turns are stored; keep the last 20 items.
   const updated = [
     ...history,
     { role: 'user', content: userMessage },
     { role: 'assistant', content: toPlainJson(patientResponse) },
   ].slice(-aiConfig.historyWindow);
 
-  // R-CHAT-04/05: synchronous, before the response, like Django. Never throws.
+  // Synchronous, before the response, like Django. Never throws.
   if (alertDoctor) {
     await alert(
       { patient, userQuery: userMessage, patientResponse, score: seriousnessScore, now: now() },

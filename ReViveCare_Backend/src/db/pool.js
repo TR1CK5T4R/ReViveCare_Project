@@ -27,7 +27,7 @@ types.setTypeParser(types.builtins.INT8, (value) => {
 // columns (Django FloatFields map to DOUBLE PRECISION, which `pg` already
 // returns as numbers); numeric only appears from SQL expressions such as
 // AVG(integer). Django's JsonResponse writes those Python floats as JSON
-// numbers, and DRF (which would stringify Decimals) is never used. See.
+// numbers, and DRF (which would stringify Decimals) is never used.
 types.setTypeParser(types.builtins.NUMERIC, (value) => Number.parseFloat(value));
 
 // date (OID 1082): the default builds a JS Date at *local* midnight, which
@@ -37,10 +37,8 @@ types.setTypeParser(types.builtins.DATE, (value) => value);
 
 // timestamptz (OID 1184): the default JS Date keeps only milliseconds, but
 // Django stores microseconds. Keep the raw string ('2026-10-15 08:30:00.123456+00')
-// so nothing is lost; utils/djangoSerialize.js turns it into whatever format
-// the endpoint's Django encoder produces. No current endpoint returns a
-// datetime. The session time zone is pinned to UTC
-// below, so the offset is always +00.
+// so nothing is lost. No current endpoint returns a datetime. The session
+// time zone is pinned to UTC below, so the offset is always +00.
 types.setTypeParser(types.builtins.TIMESTAMPTZ, (value) => value);
 
 // ─── Pool ────────────────────────────────────────────────────────────────────

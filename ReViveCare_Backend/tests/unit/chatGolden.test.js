@@ -13,7 +13,7 @@ import { pyJsonLoadsText } from '../../src/utils/pythonJson.js';
 const golden = JSON.parse(readFileSync(new URL('../fixtures/chat_golden.json', import.meta.url), 'utf8'));
 const silentLogger = { child: () => silentLogger, info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
-describe('system prompt (R-CHAT-01), verbatim', () => {
+describe('system prompt, verbatim', () => {
   it.each(golden.prompts.map((p) => [p.language, p.info.slice(0, 30), p]))(
     'language %j, info %j',
     (_lang, _info, { info, language, system }) => {
@@ -22,7 +22,7 @@ describe('system prompt (R-CHAT-01), verbatim', () => {
   );
 });
 
-describe('doctor alert (R-CHAT-05): same steps, email and TwiML as send_email_alert', () => {
+describe('doctor alert: same steps, email and TwiML as send_email_alert', () => {
   it.each(golden.alerts.map((c) => [c.case, c.input.name, c]))(
     '%s (%s)',
     async (_label, _name, { env, input, log }) => {

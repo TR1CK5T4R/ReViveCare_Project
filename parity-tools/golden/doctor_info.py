@@ -1,4 +1,4 @@
-"""Golden data for R-DOC-01 (POST /doctor_info, Doctor/views.py:doctor_info).
+"""Golden data for doctor_info (POST /doctor_info, Doctor/views.py:doctor_info).
 
 The view does `data = json.loads(request.body)`, reads data['email'],
 data['name'], data['info'], and the model fields turn non-strings into Python

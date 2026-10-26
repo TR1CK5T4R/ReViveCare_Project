@@ -11,7 +11,7 @@ import { sessionPatientId } from '../middleware/auth.js';
  * doesn't count), or the Accept header *contains* it. Compared raw, not with
  * req.is() / req.accepts(), which parse and would accept more.
  *
- * Django parity: Patients/views.py:patient_dashboard (R-AUTH-02)
+ * Django parity: Patients/views.py:patient_dashboard
  *
  * @param {import('express').Request} req
  * @returns {boolean}

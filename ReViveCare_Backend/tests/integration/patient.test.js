@@ -151,7 +151,7 @@ describe('/patient/dashboard/ JSON mode (E08, what React calls)', () => {
   });
 });
 
-describe('JSON-mode detection (R-AUTH-02)', () => {
+describe('JSON-mode detection', () => {
   // [headers, JSON mode?]: Content-Type must *equal* application/json; Accept must *contain* it.
   const cases = [
     [{ 'Content-Type': 'application/json' }, true],

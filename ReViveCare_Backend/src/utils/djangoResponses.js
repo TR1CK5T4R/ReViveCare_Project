@@ -24,7 +24,6 @@ export function errorPage(title, details) {
 
 export const NOT_FOUND_PAGE = errorPage('Not Found', 'The requested resource was not found on this server.');
 export const BAD_REQUEST_PAGE = errorPage('Bad Request (400)', '');
-export const FORBIDDEN_PAGE = errorPage('403 Forbidden', '');
 export const SERVER_ERROR_PAGE = errorPage('Server Error (500)', '');
 
 // Django parity: django/views/csrf.py csrf_failure with DEBUG=False, rendering

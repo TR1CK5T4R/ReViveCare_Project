@@ -27,7 +27,7 @@ export function exerciseSessionSchema(now = Date.now) {
     })
     .superRefine((s, ctx) => {
       const issue = (path, message) => ctx.addIssue({ code: 'custom', path: [path], message });
-      // good_reps includes excellent_reps (R-EX-02: every excellent rep also counts as good).
+      // good_reps includes excellent_reps (every excellent rep also counts as good).
       if (s.excellent_reps > s.good_reps) issue('excellent_reps', 'cannot be more than good_reps');
       // A set stops at its target (Django: counter >= target_reps ends it).
       if (s.good_reps + s.partial_reps > s.target_reps)

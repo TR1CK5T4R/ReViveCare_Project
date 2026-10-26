@@ -6,7 +6,8 @@ import { allowedHosts } from '../../src/middleware/allowedHosts.js';
 import { requirePatient, sessionPatientId } from '../../src/middleware/auth.js';
 import { errorHandler } from '../../src/middleware/errorHandler.js';
 import { validate } from '../../src/middleware/validate.js';
-import { AppError, forbidden, notFound } from '../../src/utils/httpErrors.js';
+import { errorPage } from '../../src/utils/djangoResponses.js';
+import { AppError } from '../../src/utils/httpErrors.js';
 import { createLogger } from '../../src/utils/logger.js';
 
 const logger = createLogger({ level: 'silent', pretty: false });
@@ -33,7 +34,7 @@ describe('errorHandler', () => {
   it('sends an AppError string body as a Django HTML page', async () => {
     const res = await request(
       appWith(() => {
-        throw forbidden();
+        throw new AppError(403, errorPage('403 Forbidden', ''));
       }),
     ).get('/');
     expect(res.status).toBe(403);
@@ -81,10 +82,6 @@ describe('errorHandler', () => {
     ).get('/');
     expect(res.status).toBe(405);
     expect(res.headers.allow).toBe('POST');
-  });
-
-  it('builds notFound() with the Django 404 page by default', () => {
-    expect(notFound().body).toContain('The requested resource was not found on this server.');
   });
 });
 

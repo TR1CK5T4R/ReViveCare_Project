@@ -53,7 +53,7 @@ export function evaluateParameter(name, rawValue, rules = riskRules) {
  * Evaluate the LLM's reply for one patient message, exactly as Django's
  * parse_response + chatbot_send did.
  *
- * Django parity: Patients/views.py:parse_response (R-CHAT-02), chatbot_send `> 0.75` (R-CHAT-04)
+ * Django parity: Patients/views.py:parse_response, chatbot_send `> 0.75`
  *
  * @param {{ llmReply: string }} input the model's message content
  * @param {typeof riskRules} [rules]

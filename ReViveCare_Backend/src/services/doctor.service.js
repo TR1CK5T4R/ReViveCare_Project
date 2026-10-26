@@ -18,7 +18,7 @@ const FIELDS = ['email', 'name', 'info'];
  * str() (CharField/TextField.to_python). No trimming, lower-casing or length
  * check.
  *
- * Django parity: Doctor/views.py:doctor_info (R-DOC-01)
+ * Django parity: Doctor/views.py:doctor_info
  *
  * @param {unknown} data result of pyJsonLoads(request body)
  * @returns {{ email: string, name: string, info: string }}
@@ -42,7 +42,7 @@ export function readDoctorInfoFields(data) {
  * Postgres can't store a lone UTF-16 surrogate. psycopg (Django's Postgres
  * driver) raises UnicodeEncodeError for one; node-postgres would silently
  * store U+FFFD instead, so reject it explicitly. (U+0000 and over-long values
- * already fail in Postgres itself, as they did for Django:.)
+ * already fail in Postgres itself, as they did for Django.)
  *
  * @param {{ email: string, name: string, info: string }} fields
  */

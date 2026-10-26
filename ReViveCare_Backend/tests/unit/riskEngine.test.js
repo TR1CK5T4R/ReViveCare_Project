@@ -37,7 +37,7 @@ function nodeParse(content) {
   }
 }
 
-describe('golden: Patients.views.parse_response + the > 0.75 alert (R-CHAT-02, R-CHAT-04)', () => {
+describe('golden: Patients.views.parse_response + the > 0.75 alert', () => {
   it.each(byCase('parse_response').map((c) => [c.input.content.slice(0, 80), c]))('%j', (_label, c) => {
     expect(nodeParse(c.input.content)).toEqual(c.output);
   });
@@ -104,7 +104,7 @@ describe('the rules, one by one', () => {
   const score = (text) => evaluatePatient({ llmReply: text }).seriousnessScore;
   const alerts = (text) => evaluatePatient({ llmReply: text }).alertDoctor;
 
-  it('alerts the doctor when the score is above 0.75 (R-CHAT-04)', () => {
+  it('alerts the doctor when the score is above 0.75', () => {
     expect(alerts(reply(0.76))).toBe(true);
     expect(alerts(reply('0.7500000000000001'))).toBe(true);
   });

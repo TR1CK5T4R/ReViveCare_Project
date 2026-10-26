@@ -60,7 +60,7 @@ describe('pyLower (Python str.lower())', () => {
   });
 });
 
-describe('strip().lower() on whole strings (login email, R-AUTH-01)', () => {
+describe('strip().lower() on whole strings (login email)', () => {
   it.each(golden.samples)('matches Python for $input', (sample) => {
     expect(pyStrip(sample.input)).toBe(sample.strip);
     expect(pyLower(sample.input)).toBe(sample.lower);

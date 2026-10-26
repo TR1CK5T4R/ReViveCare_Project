@@ -8,7 +8,7 @@
 // PARITY_DATABASE_URL, replays each scenario in tests/parity/scenarios/*.json
 // against both with one cookie jar per backend, compares the results and
 // writes tests/parity/report.md. Exit code 1 if anything differs that isn't a
-// logged, approved difference. Format and rules:.
+// logged, approved difference.
 
 import 'dotenv/config';
 import Database from 'better-sqlite3';

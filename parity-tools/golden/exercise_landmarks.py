@@ -1,4 +1,4 @@
-"""Golden data for the exercise rep logic (R-EX-01/02/03).
+"""Golden data for the exercise rep logic.
 
 Runs Django's real generate_frames() loop and start/reset views from the
 reference copy. Only the camera and the pose detector are swapped (no Python

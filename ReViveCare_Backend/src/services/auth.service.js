@@ -8,7 +8,7 @@ import { pyLower, pyStrip } from '../utils/pythonCompat.js';
  * `request.POST.get('email', '').strip().lower()`.
  * QueryDict.get returns the *last* value of a repeated field.
  *
- * Django parity: Patients/views.py:login (R-AUTH-01)
+ * Django parity: Patients/views.py:login
  *
  * @param {string | string[] | undefined} formValue req.body.email from express.urlencoded
  * @returns {string}

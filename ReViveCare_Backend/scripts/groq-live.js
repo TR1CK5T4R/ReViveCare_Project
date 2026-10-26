@@ -47,7 +47,7 @@ for (const [language, question] of questions) {
   ];
   const reply = await createChatCompletion(messages, { ...config.groq, logger });
   const result = evaluatePatient({ llmReply: reply });
-  // Only the score is printed: model text stays out of logs (rule 11).
+  // Only the score is printed: model text stays out of logs.
   console.log(`${language.padEnd(8)} score ${result.seriousnessScore} alert ${result.alertDoctor}`);
   captured.push({ language, question, reply });
 }

@@ -36,7 +36,7 @@ export function pyLower(value) {
   return value.toLowerCase();
 }
 
-// ─── Numbers (Phase 5: the seriousness rules, R-CHAT-02/04/05) ───
+// ─── Numbers (the seriousness rules) ───
 
 // float() maps every non-ASCII whitespace character to a space and every
 // Unicode decimal digit (category Nd) to its ASCII digit, keeps ASCII as is,
