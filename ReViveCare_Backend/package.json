@@ -30,7 +30,8 @@
     "etl": "node scripts/etl-from-django.js",
     "parity": "bash ../parity-tools/reset.sh && node scripts/parity/run.js",
     "groq:smoke": "GROQ_LIVE=1 node scripts/groq-live.js smoke",
-    "groq:capture": "GROQ_LIVE=1 node scripts/groq-live.js capture"
+    "groq:capture": "GROQ_LIVE=1 node scripts/groq-live.js capture",
+    "db:demo": "node scripts/demo-accounts.js"
   },
   "dependencies": {
     "connect-pg-simple": "10.0.0",

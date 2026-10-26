@@ -4,6 +4,20 @@ The backend of ReviveCare, a post-surgery rehabilitation app: patients log in, c
 
 Node.js 22, Express 5 and PostgreSQL, with raw SQL through `pg` (no ORM). It replaced a Django backend while keeping every URL, JSON response, cookie and rule the React frontend relies on; equivalence is checked by a parity suite that sends the same requests to both.
 
+## Demo accounts
+
+To try the app without real data, log in as one of these patients:
+
+| Name                    | Email (login)                   | Password   | Medical notes (made up)              |
+| ----------------------- | ------------------------------- | ---------- | ------------------------------------ |
+| Demo Patient (Knee)     | `demo.knee@revivecare.test`     | `demo1234` | knee ACL reconstruction, 10 days ago |
+| Demo Patient (Hip)      | `demo.hip@revivecare.test`      | `demo1234` | hip replacement, 3 weeks ago         |
+| Demo Patient (Shoulder) | `demo.shoulder@revivecare.test` | `demo1234` | rotator cuff repair, 6 weeks ago     |
+
+All three are made-up people on the reserved `.test` domain; nothing in them is real. Patient login is **email only**: the password field must be filled in, but its value isn't checked, so `demo1234` (or anything) works. The doctor pages need no login. If you add a patient there, please use made-up details too.
+
+They're created by `npm run db:demo` (see step 3 below), which is safe to run again and also refreshes them.
+
 ## Architecture
 
 ```mermaid
@@ -74,6 +88,12 @@ or generate demo data (deterministic; needs `SEED_USER_PASSWORD`):
 npm run db:seed
 ```
 
+Then add the [demo accounts](#demo-accounts) that visitors use (any database, production included; running it again just refreshes them):
+
+```sh
+npm run db:demo
+```
+
 ### 4. Run
 
 ```sh
@@ -136,6 +156,7 @@ It starts the Django copy on port 8001 and a local stand-in for the LLM API, rep
 | `npm run db:migrate`, `db:status`, `db:reset` | Apply migrations, show status, drop everything (dev/test/parity databases only)         |
 | `npm run db:etl -- <sqlite copy>`             | Copy the Django data into empty tables                                                  |
 | `npm run db:seed`                             | Generate demo data (dev/test/parity databases only)                                     |
+| `npm run db:demo`                             | Create or refresh the demo patient accounts listed above                                |
 | `npm run bench`                               | Benchmark the queries with and without the index migration (resets `revivecare_parity`) |
 | `npm run parity`                              | Run the Django-vs-Node parity suite                                                     |
 | `npm run groq:smoke`, `groq:capture`          | Opt-in calls to the real LLM API (cost money; refuse to run without `GROQ_LIVE=1`)      |
