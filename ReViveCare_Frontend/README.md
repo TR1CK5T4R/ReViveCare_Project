@@ -4,6 +4,20 @@ The React app of ReviveCare, a post-surgery rehabilitation helper. Doctors add p
 
 Built with React 19, Vite, React Router, Tailwind CSS, lucide icons and MediaPipe (`@mediapipe/tasks-vision`) for pose tracking.
 
+## Demo accounts
+
+Open the app, choose **Patient**, and log in with one of these:
+
+| Name                    | Email (login)                   | Password   | Medical notes (made up)              |
+| ----------------------- | ------------------------------- | ---------- | ------------------------------------ |
+| Demo Patient (Knee)     | `demo.knee@revivecare.test`     | `demo1234` | knee ACL reconstruction, 10 days ago |
+| Demo Patient (Hip)      | `demo.hip@revivecare.test`      | `demo1234` | hip replacement, 3 weeks ago         |
+| Demo Patient (Shoulder) | `demo.shoulder@revivecare.test` | `demo1234` | rotator cuff repair, 6 weeks ago     |
+
+All three are made-up people on the reserved `.test` domain; nothing in them is real. Patient login is **email only**: the password field must be filled in, but its value isn't checked, so `demo1234` (or anything) works. The doctor pages need no login. If you add a patient there, please use made-up details too.
+
+The accounts come from the backend's `npm run db:demo`; run it once on the database the site uses.
+
 ## Run it
 
 ```sh
@@ -19,15 +33,15 @@ Other scripts: `npm run build` (production build into `dist/`), `npm run preview
 
 All API calls go through `src/services/djangoApi.js` (named after the backend it was first written for; the Node backend keeps the same API). It sends cookies with every request (`credentials: 'include'`) and copies the `csrftoken` cookie into an `X-CSRFToken` header.
 
-| Screen | Route | Backend calls |
-|---|---|---|
-| Landing page | `/` | — |
-| Doctor: add a patient | `/doctor/add-patient` | `POST /doctor_info` `{name, email, info}` |
-| Patient login | `/patient/login` | `GET /csrf/`, then `POST /login/` (form, email only), then `GET /patient/dashboard/` |
-| Patient dashboard | `/patient/dashboard` | `GET /patient/dashboard/` (the patient's name; the cards are placeholder data) |
-| Chat | `/patient/chat` | `POST /patient/chatbot/send/` `{message, language}` → reply and seriousness score |
-| Exercises | `/patient/exercises` → `/patient/exercise/:id` | demo video from `/static/Patients/videos/…`; finished sets saved with `POST /exercise/sessions/` |
-| Doctor dashboard, medical dashboard | `/doctor`, `/medical-dashboard` | — (placeholder data) |
+| Screen                              | Route                                          | Backend calls                                                                                    |
+| ----------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Landing page                        | `/`                                            | —                                                                                                |
+| Doctor: add a patient               | `/doctor/add-patient`                          | `POST /doctor_info` `{name, email, info}`                                                        |
+| Patient login                       | `/patient/login`                               | `GET /csrf/`, then `POST /login/` (form, email only), then `GET /patient/dashboard/`             |
+| Patient dashboard                   | `/patient/dashboard`                           | `GET /patient/dashboard/` (the patient's name; the cards are placeholder data)                   |
+| Chat                                | `/patient/chat`                                | `POST /patient/chatbot/send/` `{message, language}` → reply and seriousness score                |
+| Exercises                           | `/patient/exercises` → `/patient/exercise/:id` | demo video from `/static/Patients/videos/…`; finished sets saved with `POST /exercise/sessions/` |
+| Doctor dashboard, medical dashboard | `/doctor`, `/medical-dashboard`                | — (placeholder data)                                                                             |
 
 **Login state** lives in the backend's `sessionid` cookie (HttpOnly). `src/context/AuthContext.jsx` asks `GET /patient/dashboard/` on every page load: a patient in the answer means logged in, a 401 means logged out.
 
@@ -37,13 +51,13 @@ All API calls go through `src/services/djangoApi.js` (named after the backend it
 
 ## Folders
 
-| Path | What's in it |
-|---|---|
-| `src/pages/` | One component per screen |
-| `src/components/` | Shared UI pieces (cards, buttons, form fields, layout, navbar) |
-| `src/context/AuthContext.jsx` | Who is logged in |
-| `src/hooks/` | `usePatientData`, `useDoctorData` (API calls with loading/error state), `usePoseWorkout` (camera + pose tracking) |
-| `src/services/djangoApi.js` | Every backend call |
-| `src/utils/exerciseLogic.js` | Rep counting and form checks (pure functions, unit-tested) |
-| `tests/` | Exercise logic tests against recorded landmark sequences |
-| `public/` | Static assets |
+| Path                          | What's in it                                                                                                      |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `src/pages/`                  | One component per screen                                                                                          |
+| `src/components/`             | Shared UI pieces (cards, buttons, form fields, layout, navbar)                                                    |
+| `src/context/AuthContext.jsx` | Who is logged in                                                                                                  |
+| `src/hooks/`                  | `usePatientData`, `useDoctorData` (API calls with loading/error state), `usePoseWorkout` (camera + pose tracking) |
+| `src/services/djangoApi.js`   | Every backend call                                                                                                |
+| `src/utils/exerciseLogic.js`  | Rep counting and form checks (pure functions, unit-tested)                                                        |
+| `tests/`                      | Exercise logic tests against recorded landmark sequences                                                          |
+| `public/`                     | Static assets                                                                                                     |
